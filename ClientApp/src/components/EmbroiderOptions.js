@@ -6,7 +6,8 @@ const quantizerTypes = {
     KMeans: "KMeans",
     MedianCut: "MedianCut",
     Popularity: "Popularity",
-    SimplePopularity: "SimplePopularity"
+    SimplePopularity: "SimplePopularity",
+    ModifiedMedianCut: "ModifiedMedianCut"
 }
 
 const operationOrders = {
@@ -19,7 +20,7 @@ const octreeModes = {
     MostImportant: "MostImportant"
 }
 
-export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab }) {
+export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, imageName }) {
     const [stitchSize, setStitchSize] = useState(4);
     const [maxColors, setMaxColors] = useState(32);
     const [outputStitchSize, setOutputStitchSize] = useState(4);
@@ -51,11 +52,54 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             .then(res => res.blob())
             .then(image => {
                 setPreviewImage(image);
+                getSummary();
                 setLoading(false);
             })
             .catch(ex => {
                 setLoading(false);
                 console.log(ex)
+            });
+    }
+
+    const getSpreadsheet = () => {
+        setLoadingSpreadsheet(true);
+        var request = {
+            stitchSize: stitchSize,
+            maxColors: maxColors,
+            outputStitchSize: outputStitchSize,
+            net: net,
+            quantizerType: quantizerType,
+            operationOrder: operationOrder,
+            octreeMode: octreeMode,
+            guid: guid
+        }
+        fetch('api/embroider/spreadsheet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(request)
+        })
+            .then(res => res.blob())
+            .then(sheet => {
+                setLoadingSpreadsheet(false);
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(sheet);
+                a.download = imageName;
+                a.click();
+            })
+            .catch(ex => {
+                console.log(ex);
+                setLoadingSpreadsheet(false);
+            });
+    }
+
+    const getSummary = () => {
+        fetch('api/embroider/summary?guid=' + guid)
+            .then(res => res.json())
+            .then(summary => {
+                console.log(summary);
+                setSummary(summary);
             });
     }
 
@@ -65,89 +109,92 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                 Settings
             </div>
             <div className={'options-list'}>
-            <div className={'option'}>
-                <label for="stitchSize">Stitch size (px)</label>
-                <input
-                    id="stitchSize"
-                    type="number"
-                    value={stitchSize}
-                    onChange={e => setStitchSize(parseInt(e.target.value))}
-                    min="1"
-                    max="8"
-                />
-            </div>
-            <div className={'option'}>
-                <label for="maxColors">Maximum number of colors</label>
-                <input
-                    id="maxColors"
-                    type="number"
-                    value={maxColors}
-                    onChange={e => setMaxColors(parseInt(e.target.value))}
-                    min="2"
-                />
-            </div>
-            <div className={'option'}>
-                <label for="outputStitchSize">Stitch size in output image (px)</label>
-                <input
-                    type="number"
-                    value={outputStitchSize}
-                    onChange={e => setOutputStitchSize(parseInt(e.target.value))}
-                    min="1"
-                    max="8"
-                />
-            </div>
-            <div className={'option'}>
-                <input
-                    id="net"
-                    type="checkbox"
-                    value={net}
-                    onChange={e => setNet(e.target.checked)}
-                />
-                <label for="net">Draw a net separating stitches</label>
-            </div>
-            <div className={'option'}>
-                <label for="quantizerType">Color quantization algorithm</label>
+                <div className={'option'}>
+                    <label for="stitchSize">Stitch size (px)</label>
+                    <input
+                        id="stitchSize"
+                        type="number"
+                        value={stitchSize}
+                        onChange={e => setStitchSize(parseInt(e.target.value))}
+                        min="1"
+                        max="8"
+                    />
+                </div>
+                <div className={'option'}>
+                    <label for="maxColors">Maximum number of colors</label>
+                    <input
+                        id="maxColors"
+                        type="number"
+                        value={maxColors}
+                        onChange={e => setMaxColors(parseInt(e.target.value))}
+                        min="2"
+                    />
+                </div>
+                <div className={'option'}>
+                    <label for="outputStitchSize">Stitch size in output image (px)</label>
+                    <input
+                        type="number"
+                        value={outputStitchSize}
+                        onChange={e => setOutputStitchSize(parseInt(e.target.value))}
+                        min="1"
+                        max="8"
+                    />
+                </div>
+                <div className={'option'}>
+                    <label for="net">Draw a net separating stitches</label>
+                    <label class="switch">
+                        <input
+                            id="net"
+                            type="checkbox"
+                            value={net}
+                            onChange={e => setNet(e.target.checked)}
+                        />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div className={'option'}>
+                    <label for="quantizerType">Color quantization algorithm</label>
                     <select
                         id="quantizerType"
-                    value={quantizerType}
-                    onChange={e => setQuantizerType(e.target.value)}
-                >
-                    <option value={quantizerTypes.Octree}>Octree</option>
-                    <option value={quantizerTypes.KMeans}>K-Means</option>
-                    <option value={quantizerTypes.MedianCut}>Median cut</option>
-                    <option value={quantizerTypes.Popularity}>Popularity</option>
-                    <option value={quantizerTypes.SimplePopularity}>Simple popularity</option>
-                </select>
-            </div>
-            {
-                quantizerType == quantizerTypes.Octree &&
-                <div className={'option'}>
-                    <label for="octreeMode">Merge order for octee algorithm</label>
-                    <select
-                        id="octreeMode"
-                        value={octreeMode}
-                        onChange={e => setOctreeMode(e.target.value)}
+                        value={quantizerType}
+                        onChange={e => setQuantizerType(e.target.value)}
                     >
-                        <option value={octreeModes.LeastImportant}>Merge least popular colors first</option>
-                        <option value={octreeModes.MostImportant}>Merge most popular colors first</option>
+                        <option value={quantizerTypes.Octree}>Octree</option>
+                        <option value={quantizerTypes.KMeans}>K-Means</option>
+                        <option value={quantizerTypes.MedianCut}>Median cut</option>
+                        <option value={quantizerTypes.Popularity}>Popularity</option>
+                        <option value={quantizerTypes.SimplePopularity}>Simple popularity</option>
                     </select>
                 </div>
-            }
-            <div className={'option'}>
-                <label for="operationOrder">Order of operations</label>
-                <select
-                    id="operationOrder"
-                    value={operationOrder}
-                    onChange={e => setOperationOrder(e.target.value)}
-                >
-                    <option value={operationOrders.QuantizeFirst}>Quantize first</option>
-                    <option value={operationOrders.ReplacePixelsFirst}>Replace pixels with DMC colors first</option>
-                </select>
+                {
+                    quantizerType == quantizerTypes.Octree &&
+                    <div className={'option'}>
+                        <label for="octreeMode">Merge order for octee algorithm</label>
+                        <select
+                            id="octreeMode"
+                            value={octreeMode}
+                            onChange={e => setOctreeMode(e.target.value)}
+                        >
+                            <option value={octreeModes.LeastImportant}>Merge least popular colors first</option>
+                            <option value={octreeModes.MostImportant}>Merge most popular colors first</option>
+                        </select>
+                    </div>
+                }
+                <div className={'option'}>
+                    <label for="operationOrder">Order of operations</label>
+                    <select
+                        id="operationOrder"
+                        value={operationOrder}
+                        onChange={e => setOperationOrder(e.target.value)}
+                    >
+                        <option value={operationOrders.QuantizeFirst}>Quantize first</option>
+                        <option value={operationOrders.ReplacePixelsFirst}>Replace pixels with DMC colors first</option>
+                    </select>
                 </div>
             </div>
             <div className={'buttons'}>
                 <button type="button" onClick={() => getPreview()}>Generate preview</button>
-                <button type="button">Generate spreadsheet</button>
+                <button type="button" onClick={() => getSpreadsheet()}>Generate spreadsheet</button>
             </div>
         </div>
     );

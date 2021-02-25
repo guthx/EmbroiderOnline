@@ -80,5 +80,39 @@ namespace EmroiderOnline.Controllers
                 return StatusCode(500);
             }
         }
+
+        [HttpPost("spreadsheet")]
+        public ActionResult GetSpreadsheet([FromBody] OptionsRequest request)
+        {
+            try
+            {
+                var spreadsheet = _embroiderService.GetSpreadsheet(request);
+                if (spreadsheet == null)
+                    return StatusCode(400);
+                var data = spreadsheet.GetAsByteArray();
+                spreadsheet = null;
+                return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            }
+            catch (Exception)
+            {
+                return StatusCode(500);
+            }
+        }
+
+        [HttpGet("summary")]
+        public ActionResult GetSummary(string guid)
+        {
+            try
+            {
+                var summary = _embroiderService.GetSummary(guid);
+                if (summary == null)
+                    return StatusCode(400);
+                return new JsonResult(new SummaryResponse(summary));
+            }
+            catch (Exception)
+            {
+                return StatusCode(500);
+            }
+        }
     }
 }

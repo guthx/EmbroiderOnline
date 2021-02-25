@@ -13,6 +13,7 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
 using Embroider.Quantizers;
 using System.Drawing.Imaging;
+using OfficeOpenXml;
 
 namespace EmroiderOnline.Services
 {
@@ -45,68 +46,94 @@ namespace EmroiderOnline.Services
             Embroider.Embroider embroider;
             if(_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
             {
-                QuantizerType quantizerType;
-                switch (request.QuantizerType)
-                {
-                    case "KMeans":
-                        quantizerType = QuantizerType.KMeans;
-                        break;
-                    case "Octree":
-                        quantizerType = QuantizerType.Octree;
-                        break;
-                    case "MedianCut":
-                        quantizerType = QuantizerType.MedianCut;
-                        break;
-                    case "Popularity":
-                        quantizerType = QuantizerType.Popularity;
-                        break;
-                    case "SimplePopularity":
-                        quantizerType = QuantizerType.SimplePopularity;
-                        break;
-                    default:
-                        quantizerType = QuantizerType.Octree;
-                        break;
-                }
-                OperationOrder operationOrder;
-                switch (request.OperationOrder)
-                {
-                    case "QuantizeFirst":
-                        operationOrder = OperationOrder.QuantizeFirst;
-                        break;
-                    case "ReplacePixelsFirst":
-                        operationOrder = OperationOrder.ReplacePixelsFirst;
-                        break;
-                    default:
-                        operationOrder = OperationOrder.QuantizeFirst;
-                        break;
-                }
-                MergeMode octreeMode;
-                switch (request.OctreeMode)
-                {
-                    case "LeastImportant":
-                        octreeMode = MergeMode.LEAST_IMPORTANT;
-                        break;
-                    case "MostImportant":
-                        octreeMode = MergeMode.MOST_IMPORTANT;
-                        break;
-                    default:
-                        octreeMode = MergeMode.LEAST_IMPORTANT;
-                        break;
-                }
-                var options = new EmbroiderOptions
-                {
-                    StichSize = request.StitchSize,
-                    OutputStitchSize = request.OutputStitchSize,
-                    MaxColors = request.MaxColors,
-                    Net = request.Net,
-                    QuantizerType = quantizerType,
-                    OctreeMode = octreeMode,
-                    OperationOrder = operationOrder
-                };
-                embroider.Options = options;
+                setEmbroiderOptions(embroider, request);
                 return embroider.GenerateImage();
             }
             return null;
+        }
+
+        public ExcelPackage GetSpreadsheet(OptionsRequest request)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
+            {
+                setEmbroiderOptions(embroider, request);
+                return embroider.GenerateExcelSpreadsheet();
+            }
+            return null;
+        }
+
+        public Summary GetSummary(string guid)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                return embroider.GetSummary();
+            }
+            return null;
+        }
+
+        private void setEmbroiderOptions(Embroider.Embroider embroider, OptionsRequest request)
+        {
+            QuantizerType quantizerType;
+            switch (request.QuantizerType)
+            {
+                case "KMeans":
+                    quantizerType = QuantizerType.KMeans;
+                    break;
+                case "Octree":
+                    quantizerType = QuantizerType.Octree;
+                    break;
+                case "MedianCut":
+                    quantizerType = QuantizerType.MedianCut;
+                    break;
+                case "Popularity":
+                    quantizerType = QuantizerType.Popularity;
+                    break;
+                case "SimplePopularity":
+                    quantizerType = QuantizerType.SimplePopularity;
+                    break;
+                default:
+                    quantizerType = QuantizerType.Octree;
+                    break;
+            }
+            OperationOrder operationOrder;
+            switch (request.OperationOrder)
+            {
+                case "QuantizeFirst":
+                    operationOrder = OperationOrder.QuantizeFirst;
+                    break;
+                case "ReplacePixelsFirst":
+                    operationOrder = OperationOrder.ReplacePixelsFirst;
+                    break;
+                default:
+                    operationOrder = OperationOrder.QuantizeFirst;
+                    break;
+            }
+            MergeMode octreeMode;
+            switch (request.OctreeMode)
+            {
+                case "LeastImportant":
+                    octreeMode = MergeMode.LEAST_IMPORTANT;
+                    break;
+                case "MostImportant":
+                    octreeMode = MergeMode.MOST_IMPORTANT;
+                    break;
+                default:
+                    octreeMode = MergeMode.LEAST_IMPORTANT;
+                    break;
+            }
+            var options = new EmbroiderOptions
+            {
+                StichSize = request.StitchSize,
+                OutputStitchSize = request.OutputStitchSize,
+                MaxColors = request.MaxColors,
+                Net = request.Net,
+                QuantizerType = quantizerType,
+                OctreeMode = octreeMode,
+                OperationOrder = operationOrder
+            };
+            embroider.Options = options;
         }
 
     }

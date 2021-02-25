@@ -5,7 +5,6 @@ import { EmbroiderMain } from './EmbroiderMain';
 export function Home(props) {
     const [guid, setGuid] = useState(null);
     const [image, setImage] = useState(null);
-    const [imageName, setImageName] = useState(null);
     const [imageDragged, setImageDragged] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploaded, setUploaded] = useState(false);
@@ -23,7 +22,6 @@ export function Home(props) {
         setUploading(true);
         console.log(e.target.files[0]);
         setImage(e.target.files[0]);
-        setImageName(e.target.files[0].name);
         const formData = new FormData();
         formData.append("formFile", e.target.files[0]);
         formData.append("imageName", e.target.files[0].name);
@@ -50,7 +48,6 @@ export function Home(props) {
         setUploading(true);
         var file = data.getAsFile();
         setImage(file);
-        setImageName(file.name);
         const formData = new FormData();
         formData.append("formFile", file);
         formData.append("imageName", file.name);
@@ -84,7 +81,6 @@ export function Home(props) {
         return (
             <EmbroiderMain
                 image={image}
-                imageName={imageName}
                 guid={guid}
                 />
             );

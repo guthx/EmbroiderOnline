@@ -1,13 +1,50 @@
 ﻿import React, { useState } from 'react';
 import { tabType } from './EmbroiderMain'
 
-export function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab }) {
+export function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab, summary }) {
+    console.log(image.name);
+
+    const SummaryContent = () => {
+        console.log(summary);
+        if (summary == null)
+            return null;
+        return (
+            <div className={'summary'}>
+            <div>
+                {summary.height}x{summary.width} stiches ({summary.height * summary.width} in total)
+            </div>
+            <div>
+                {summary.flosses.length} colors:
+            </div>
+                <div className={'floss-list'}>
+                    {
+                        summary.flosses.map((floss, i) => (
+                            <div className={'floss'} key={i}>
+                                <div className={'description'}>
+                                    {floss.description} ({floss.number})
+                                </div>
+                                <div
+                                    className={'color-preview'}
+                                    style={{ backgroundColor: floss.hexRGB }}
+                                >
+                                </div>
+                                <div className={'count'}>
+                                    {floss.count} stitches
+                                </div>
+                            </div>
+                            ))
+                    }
+                </div>
+            </div>
+            );
+    }
 
     const imageWindowContent = () => {
         switch (selectedTab) {
             case tabType.IMAGE:
+                var url = URL.createObjectURL(image);
                 return (
-                        <img src={URL.createObjectURL(image)} alt="image" />
+                    <img src={url} alt="image" />
                 );
             case tabType.PREVIEW:
                 if (loading)
@@ -16,9 +53,15 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
                         )
                 if (previewImage == null)
                     return null;
+                var url = URL.createObjectURL(previewImage);
+                var name = image.name.split('.')[0];
                 return (
-                    <img src={URL.createObjectURL(previewImage)} />
-                    );
+                    <a href={url} download={name + '_preview'}>
+                        <img src={url} />
+                    </a>
+                );
+            case tabType.SUMMARY:
+                return <SummaryContent />
             default:
                 return null;
         }
@@ -37,7 +80,7 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
                     </label>
                 </div>
                 <div
-                    className={`tab ${selectedTab == tabType.PREVIEW ? "selected" : ""}`}
+                    className={`tab ${selectedTab == tabType.PREVIEW ? "selected" : ""} ${previewImage == null ? "disabled" : ""}`}
                     onClick={e => setSelectedTab(tabType.PREVIEW)}
                 >
                     <label>
@@ -45,7 +88,7 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
                     </label>
                 </div>
                 <div
-                    className={`tab ${selectedTab == tabType.SUMMARY ? "selected" : ""}`}
+                    className={`tab ${selectedTab == tabType.SUMMARY ? "selected" : ""} ${previewImage == null ? "disabled" : ""}`}
                     onClick={e => setSelectedTab(tabType.SUMMARY)}
                 >
                     <label>
