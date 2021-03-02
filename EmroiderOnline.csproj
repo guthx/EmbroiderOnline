@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="C5" Version="2.5.3" />
     <PackageReference Include="CsvHelper" Version="22.1.2" />
     <PackageReference Include="Emgu.CV" Version="4.5.1.4349" />
     <PackageReference Include="Emgu.CV.Bitmap" Version="4.5.1.4349" />

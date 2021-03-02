@@ -314,7 +314,7 @@ input:checked + .slider:before {
 
 .options-list {
     display: grid;
-    overflow-y: auto;
+    overflow-y: scroll;
     grid-row-gap: 15px;
     grid-template-rows: repeat(10, min-content);
     padding: 0 10px;
@@ -374,7 +374,105 @@ input:checked + .slider:before {
 
 .floss {
     display: grid;
-    grid-template-columns: 200px 50px 100px;
+    grid-template-columns: 100px 50px 100px;
     flex-basis: min-content;
     grid-column-gap: 10px;
+}
+
+.dimmed {
+    background-color: lightgray;
+}
+
+.dimmed#stitchSize{
+    color: lightgray;
+}
+
+.tooltip-icon {
+    display: inline-block;
+    position: absolute;
+    margin-left: 4px;
+    color: #2a2a2e;
+    margin-top: -1px;
+}
+
+    .tooltip-icon .tooltip-text {
+        visibility: hidden;
+        width: 300px;
+        background-color: #2a2a2e;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 10px 0;
+        position: absolute;
+        z-index: 1;
+        bottom: -50%;
+        right: 100%;
+        margin-right: 5px;
+        margin-bottom: -2px;
+    }
+
+
+    .tooltip-icon:hover .tooltip-text {
+        visibility: visible;
+    }
+
+.tool-tip {
+    font-size: 16px;
+}
+
+.option label svg {
+    margin-top: -1px;
+    margin-left: 4px;
+    color: #2e2e2e;
+}
+
+.advanced-tab-title {
+    margin-left: 20px;
+    font-size: 18px;
+    color: blueviolet;
+}
+
+    .advanced-tab-title:hover {
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+.MuiCollapse-wrapperInner {
+    display: grid;
+    grid-row-gap: 15px;
+}
+
+.option input[type=range] {
+    -webkit-appearance: none;
+    width: 70%;
+    height: 7px;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+    margin-top: 8px;
+}
+
+    .option input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: blueviolet;
+        cursor: pointer;
+    }
+
+    .option input[type=range]::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: blueviolet;
+        cursor: pointer;
+    }
+
+#dithererStrength {
+    width: 35px;
+    text-align: center;
 }

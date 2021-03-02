@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Embroider.Quantizers;
 using System.Drawing.Imaging;
 using OfficeOpenXml;
+using static Embroider.Enums;
 
 namespace EmroiderOnline.Services
 {
@@ -35,13 +36,13 @@ namespace EmroiderOnline.Services
 
             var id = Guid.Parse(guid);
             var bitmap = new Bitmap(file.OpenReadStream());
-            var image = bitmap.ToImage<Lab, double>();
+            var image = bitmap.ToImage<Rgb, double>();
             var embroider = new Embroider.Embroider(image);
             _embroiders.AddOrUpdate(id, embroider, (key, val) => embroider);
             return true;
         }
 
-        public Image<Lab, double> GetPreviewImage(OptionsRequest request)
+        public Image<Rgb, double> GetPreviewImage(OptionsRequest request)
         {
             Embroider.Embroider embroider;
             if(_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
@@ -93,21 +94,80 @@ namespace EmroiderOnline.Services
                 case "SimplePopularity":
                     quantizerType = QuantizerType.SimplePopularity;
                     break;
+                case "ModifiedMedianCut":
+                    quantizerType = QuantizerType.ModifiedMedianCut;
+                    break;
                 default:
                     quantizerType = QuantizerType.Octree;
                     break;
             }
-            OperationOrder operationOrder;
-            switch (request.OperationOrder)
+            DithererType dithererType;
+            switch (request.DithererType)
             {
-                case "QuantizeFirst":
-                    operationOrder = OperationOrder.QuantizeFirst;
+                case "Atkinson":
+                    dithererType = DithererType.Atkinson;
                     break;
-                case "ReplacePixelsFirst":
-                    operationOrder = OperationOrder.ReplacePixelsFirst;
+                case "FloydSteinberg":
+                    dithererType = DithererType.FloydSteinberg;
+                    break;
+                case "Pigeon":
+                    dithererType = DithererType.Pigeon;
+                    break;
+                case "Stucki":
+                    dithererType = DithererType.Stucki;
+                    break;
+                case "Sierra":
+                    dithererType = DithererType.Sierra;
+                    break;
+                case "None":
+                    dithererType = DithererType.None;
                     break;
                 default:
-                    operationOrder = OperationOrder.QuantizeFirst;
+                    dithererType = DithererType.Atkinson;
+                    break;
+            }
+            ColorSpace colorSpace;
+            switch (request.ColorSpace)
+            {
+                case "Rgb":
+                    colorSpace = ColorSpace.Rgb;
+                    break;
+                case "Ycc":
+                    colorSpace = ColorSpace.Ycc;
+                    break;
+                case "Luv":
+                    colorSpace = ColorSpace.Luv;
+                    break;
+                case "Lab":
+                    colorSpace = ColorSpace.Lab;
+                    break;
+                case "Hsv":
+                    colorSpace = ColorSpace.Hsv;
+                    break;
+                default:
+                    colorSpace = ColorSpace.Rgb;
+                    break;
+            }
+            ColorComparerType colorComparer;
+            switch (request.ColorComparerType)
+            {
+                case "WeightedEuclideanDistance":
+                    colorComparer = ColorComparerType.WeightedEuclideanDistance;
+                    break;
+                case "EuclideanDistance":
+                    colorComparer = ColorComparerType.EuclideanDistance;
+                    break;
+                case "CMC":
+                    colorComparer = ColorComparerType.CMC;
+                    break;
+                case "DE2000":
+                    colorComparer = ColorComparerType.DE2000;
+                    break;
+                case "DE76":
+                    colorComparer = ColorComparerType.DE76;
+                    break;
+                default:
+                    colorComparer = ColorComparerType.WeightedEuclideanDistance;
                     break;
             }
             MergeMode octreeMode;
@@ -125,13 +185,17 @@ namespace EmroiderOnline.Services
             }
             var options = new EmbroiderOptions
             {
-                StichSize = request.StitchSize,
+                StitchSize = request.StitchSize,
                 OutputStitchSize = request.OutputStitchSize,
                 MaxColors = request.MaxColors,
                 Net = request.Net,
                 QuantizerType = quantizerType,
                 OctreeMode = octreeMode,
-                OperationOrder = operationOrder
+                ColorSpace = colorSpace,
+                ColorComparerType = colorComparer,
+                DithererType = dithererType,
+                DithererStrength = request.DithererStrength,
+                WidthStitchCount = request.WidthStitchCount
             };
             embroider.Options = options;
         }

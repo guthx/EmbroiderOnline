@@ -1,8 +1,8 @@
 ﻿import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { tabType } from './EmbroiderMain'
 
-export function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab, summary }) {
-    console.log(image.name);
+function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab, setImageSize, summary }) {
 
     const SummaryContent = () => {
         console.log(summary);
@@ -21,7 +21,7 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
                         summary.flosses.map((floss, i) => (
                             <div className={'floss'} key={i}>
                                 <div className={'description'}>
-                                    {floss.description} ({floss.number})
+                                    DMC {floss.number}
                                 </div>
                                 <div
                                     className={'color-preview'}
@@ -44,7 +44,13 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
             case tabType.IMAGE:
                 var url = URL.createObjectURL(image);
                 return (
-                    <img src={url} alt="image" />
+                    <img
+                        onLoad={e => {
+                            setImageSize({ height: e.target.naturalHeight, width: e.target.naturalWidth });
+                        }}
+                        id="original-image"
+                        src={url}
+                        alt="image" />
                 );
             case tabType.PREVIEW:
                 if (loading)
@@ -57,7 +63,7 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
                 var name = image.name.split('.')[0];
                 return (
                     <a href={url} download={name + '_preview'}>
-                        <img src={url} />
+                        <img id="preview-image" src={url} />
                     </a>
                 );
             case tabType.SUMMARY:
@@ -102,3 +108,5 @@ export function ImagePreview({ image, previewImage, loading, selectedTab, setSel
         </div>
         );
 }
+
+export default React.memo(ImagePreview);

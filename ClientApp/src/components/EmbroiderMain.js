@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react'
-import { ImagePreview } from './ImagePreview';
+import ImagePreview from './ImagePreview';
 import { EmbroiderOptions } from './EmbroiderOptions';
 import Dialog from '@material-ui/core/Dialog';
 import DialogTitle from '@material-ui/core/DialogTitle';
@@ -16,6 +16,7 @@ export function EmbroiderMain({ image, guid }) {
     const [loading, setLoading] = useState(false);
     const [loadingSpreadsheet, setLoadingSpreadsheet] = useState(false);
     const [summary, setSummary] = useState(null);
+    const [imageSize, setImageSize] = useState({ height: "100", width: "100" });
 
     return (
         <div className={'main-wrapper'}>
@@ -29,6 +30,7 @@ export function EmbroiderMain({ image, guid }) {
                 loading={loading}
                 selectedTab={selectedTab}
                 setSelectedTab={setSelectedTab}
+                setImageSize={setImageSize}
                 summary={summary}
             />
             <EmbroiderOptions
@@ -39,6 +41,7 @@ export function EmbroiderMain({ image, guid }) {
                 setLoadingSpreadsheet={setLoadingSpreadsheet}
                 setSummary={setSummary}
                 imageName={image.name}
+                imageSize={imageSize}
             />
         </div>
         );

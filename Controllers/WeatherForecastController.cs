@@ -52,7 +52,7 @@ namespace EmroiderOnline.Controllers
                 var bitmap = new Bitmap(image);
                 // var stream = new FileStream(@"F:\Inne\ahri\wwwtest.png", FileMode.Create);
                 // file.FormFile.CopyTo(stream)
-                Image<Lab, double> x = BitmapExtension.ToImage<Lab, double>(bitmap);
+                Image<Rgb, double> x = BitmapExtension.ToImage<Rgb, double>(bitmap);
                 
                 return StatusCode(200);
             }
@@ -68,13 +68,13 @@ namespace EmroiderOnline.Controllers
             try
             {
                 /*
-                var image = new Image<Lab, double>(@"F:\Inne\ahri\ahri2.png");
+                var image = new Image<Rgb, double>(@"F:\Inne\ahri\ahri2.png");
                 var bytes = image.Convert<Bgr, byte>().ToJpegData();
                 
 
                 return File(bytes, "image/jpeg");
                 */
-                var image = new Image<Lab, double>(@"F:\Inne\ahri\ahri2.png");
+                var image = new Image<Rgb, double>(@"F:\Inne\ahri\ahri2.png");
                 var cimage = image.ToBitmap();
                 using (var stream = new MemoryStream())
                 {
