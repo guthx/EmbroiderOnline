@@ -74,7 +74,7 @@ const tooltips = {
 
 }
 
-export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, imageName, imageSize }) {
+export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage }) {
     const [stitchSize, setStitchSize] = useState(4);
     const [maxColors, setMaxColors] = useState(32);
     const [outputStitchSize, setOutputStitchSize] = useState(4);
@@ -108,6 +108,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     }
 
     const getPreview = () => {
+        var prevTab = selectedTab;
         setSelectedTab(tabType.PREVIEW);
         setLoading(true);
         var request = {
@@ -131,7 +132,14 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             },
             body: JSON.stringify(request),
         })
-            .then(res => res.blob())
+            .then(res => {
+                if (res.status == 400) {
+                    setTimeout(true);
+                    setSelectedTab(prevTab);
+                    throw new Error("Timeout");
+                }
+                return res.blob();
+            })
             .then(image => {
                 setPreviewImage(image);
                 getSummary();
@@ -166,7 +174,13 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             },
             body: JSON.stringify(request)
         })
-            .then(res => res.blob())
+            .then(res => {
+                if (res.status == 400) {
+                    setTimeout(true);
+                    throw new Error("Timeout");
+                }
+                return res.blob();
+            })
             .then(sheet => {
                 setLoadingSpreadsheet(false);
                 var a = document.createElement('a');
@@ -182,11 +196,15 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
 
     const getSummary = () => {
         fetch('api/embroider/summary?guid=' + guid)
-            .then(res => res.json())
+            .then(res => {
+                if (res.status == 400)
+                    throw new Error("Timeout");
+                return res.json();
+            })
             .then(summary => {
-                console.log(summary);
                 setSummary(summary);
-            });
+            })
+            .catch(ex => {})
     }
 
     const OptionTooltip = withStyles((theme) => ({
@@ -578,6 +596,14 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             <div className={'buttons'}>
                 <button type="button" onClick={() => getPreview()}>Generate preview</button>
                 <button type="button" onClick={() => getSpreadsheet()}>Generate spreadsheet</button>
+                <label for="file-upload">
+                    Upload new image
+                </label>
+                <input type="file"
+                    id="file-upload"
+                    onChange={(e) => uploadNewImage(e)}
+                    accept=".gif, .jpeg, .jpg, .png, .bmp"
+                />
             </div>
         </div>
     );

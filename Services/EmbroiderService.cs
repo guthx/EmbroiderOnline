@@ -15,13 +15,14 @@ using Embroider.Quantizers;
 using System.Drawing.Imaging;
 using OfficeOpenXml;
 using static Embroider.Enums;
+using System.Timers;
 
 namespace EmroiderOnline.Services
 {
     public class EmbroiderService
     {
         private static ConcurrentDictionary<Guid, Embroider.Embroider> _embroiders = new ConcurrentDictionary<Guid, Embroider.Embroider>();
-
+        private static ConcurrentDictionary<Guid, Timer> _deletionTimers = new ConcurrentDictionary<Guid, Timer>();
         public EmbroiderService() 
         { 
         }
@@ -39,6 +40,16 @@ namespace EmroiderOnline.Services
             var image = bitmap.ToImage<Rgb, double>();
             var embroider = new Embroider.Embroider(image);
             _embroiders.AddOrUpdate(id, embroider, (key, val) => embroider);
+            var timer = new Timer(300000);
+            timer.Elapsed += (obj, args) =>
+            {
+                _embroiders.Remove(id, out _);
+                _deletionTimers.Remove(id, out _);
+                timer.Dispose();
+            };
+            timer.AutoReset = false;
+            timer.Start();
+            _deletionTimers.AddOrUpdate(id, timer, (key, val) => timer);
             return true;
         }
 
@@ -50,6 +61,7 @@ namespace EmroiderOnline.Services
                 setEmbroiderOptions(embroider, request);
                 return embroider.GenerateImage();
             }
+            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -61,6 +73,7 @@ namespace EmroiderOnline.Services
                 setEmbroiderOptions(embroider, request);
                 return embroider.GenerateExcelSpreadsheet();
             }
+            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -71,6 +84,7 @@ namespace EmroiderOnline.Services
             {
                 return embroider.GetSummary();
             }
+            resetDeletionTimer(Guid.Parse(guid));
             return null;
         }
 
@@ -197,7 +211,18 @@ namespace EmroiderOnline.Services
                 DithererStrength = request.DithererStrength,
                 WidthStitchCount = request.WidthStitchCount
             };
+            resetDeletionTimer(Guid.Parse(request.Guid));
             embroider.Options = options;
+        }
+
+        private void resetDeletionTimer(Guid guid)
+        {
+            Timer timer;
+            if (_deletionTimers.TryGetValue(guid, out timer))
+            {
+                timer.Stop();
+                timer.Start();
+            }
         }
 
     }

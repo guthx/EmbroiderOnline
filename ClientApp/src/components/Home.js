@@ -8,6 +8,8 @@ export function Home(props) {
     const [imageDragged, setImageDragged] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploaded, setUploaded] = useState(false);
+    const [timeout, setTimeout] = useState(false);
+    const [warning, setWarning] = useState(false);
 
     useEffect(() => {
         fetch('api/embroider')
@@ -17,8 +19,11 @@ export function Home(props) {
 
     const saveFile = (e) => {
         e.preventDefault();
-        if (!e.target.files[0].type.startsWith('image'))
+        if (!e.target.files[0].type.startsWith('image') || e.target.files[0].size > 5242880) {
+            setWarning(true);
             return null;
+        }
+            
         setUploading(true);
         console.log(e.target.files[0]);
         setImage(e.target.files[0]);
@@ -32,12 +37,16 @@ export function Home(props) {
         })
             .then(res => {
                 setUploading(false);
-                if (res.status == 200)
+                if (res.status == 200) {
                     setUploaded(true);
+                    setTimeout(false);
+                }
+                    
             })
             .catch(ex => {
                 console.log(ex);
             });
+        return true;
     }
 
     const onDropImage = (e) => {
@@ -45,8 +54,13 @@ export function Home(props) {
         var data = e.dataTransfer.items[0];
         if (data.kind != 'file' || !data.type.startsWith("image"))
             return null;
-        setUploading(true);
         var file = data.getAsFile();
+        if (file.size > 5242880) {
+            setWarning(true);
+            return null;
+        }
+            
+        setUploading(true);
         setImage(file);
         const formData = new FormData();
         formData.append("formFile", file);
@@ -82,6 +96,12 @@ export function Home(props) {
             <EmbroiderMain
                 image={image}
                 guid={guid}
+                setUploaded={setUploaded}
+                saveFile={saveFile}
+                uploading={uploading}
+                timeout={timeout}
+                setTimeout={setTimeout}
+                warning={warning}
                 />
             );
 
@@ -98,6 +118,7 @@ export function Home(props) {
                 onDrop={onDropImage}
                 imageDragged={imageDragged}
                 uploading={uploading}
+                warning={warning}
             />
         </div>
     );

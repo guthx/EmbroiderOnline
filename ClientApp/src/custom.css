@@ -32,7 +32,7 @@ input[type="file"]{
     font-size: min(7vh, 48px);
     width: 25vw;
     background-color: antiquewhite;
-    height: 40vh;
+    height: min(340px, 45vh);
     text-align: center;
     background-color: white;
     box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14),0 3px 1px -2px rgba(0,0,0,0.2),0 1px 5px 0 rgba(0,0,0,0.12);
@@ -332,7 +332,9 @@ input:checked + .slider:before {
     padding: 10px 20px;
 }
 
-    .options .buttons button {
+    .options .buttons button,
+    .options .buttons label
+    {
         background-color: blueviolet;
         border: none;
         border-radius: 4px;
@@ -340,7 +342,14 @@ input:checked + .slider:before {
         color: white;
         padding: 2px 0px;
         box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14),0 3px 1px -2px rgba(0,0,0,0.2),0 1px 5px 0 rgba(0,0,0,0.12);
+        text-align: center;
+        margin: 0;
     }
+        .options .buttons button:hover,
+        .options .buttons label:hover {
+            background-color: #41c300;
+            cursor: pointer;
+        }
 
 .dialog-title {
     text-align: center;
@@ -475,4 +484,32 @@ input:checked + .slider:before {
 #dithererStrength {
     width: 35px;
     text-align: center;
+}
+
+#dialog-title{
+    text-align: center;
+}
+
+.dialog-content {
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+.return {
+    color: blueviolet;
+}
+
+.return:hover{
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.session-timeout-dialog .lds-ring {
+    margin: auto;
+}
+
+.warning {
+    font-size: 14px;
+    color: red;
+    margin-top: -12px;
 }
