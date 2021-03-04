@@ -32,10 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="ClientApp\src\components\ImagePreview.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="Embroider">
       <HintPath>..\..\Embroider\Embroider\bin\Release\netcoreapp3.1\Embroider.dll</HintPath>
     </Reference>

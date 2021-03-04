@@ -74,7 +74,7 @@ const tooltips = {
 
 }
 
-export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage }) {
+export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage, setPixelMap }) {
     const [stitchSize, setStitchSize] = useState(4);
     const [maxColors, setMaxColors] = useState(32);
     const [outputStitchSize, setOutputStitchSize] = useState(4);

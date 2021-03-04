@@ -114,5 +114,21 @@ namespace EmroiderOnline.Controllers
                 return StatusCode(500);
             }
         }
+
+        [HttpGet("pixelMap")]
+        public ActionResult GetPixelMap(string guid)
+        {
+            try
+            {
+                var map = _embroiderService.GetPixelMap(guid);
+                if (map == null)
+                    return StatusCode(400);
+                return new JsonResult(map);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500);
+            }
+        }
     }
 }

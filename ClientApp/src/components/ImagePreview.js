@@ -1,8 +1,15 @@
 ﻿import React, { useState } from 'react';
 import { useEffect } from 'react';
 import { tabType } from './EmbroiderMain'
+import ImageMapper from 'react-img-mapper'
+import ImagePreviewZoom from './ImagePreviewZoom';
 
 function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab, setImageSize, summary }) {
+    const [zoom, setZoom] = useState(false);
+    const [imageUrl, setImageUrl] = useState("");
+    const [previewImageUrl, setPreviewImageUrl] = useState("");
+    const [previewImageSize, setPreviewImageSize] = useState({ height: 0, width: 0 });
+    
 
     const SummaryContent = () => {
         console.log(summary);
@@ -42,14 +49,13 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
     const imageWindowContent = () => {
         switch (selectedTab) {
             case tabType.IMAGE:
-                var url = URL.createObjectURL(image);
                 return (
                     <img
                         onLoad={e => {
-                            setImageSize({ height: e.target.naturalHeight, width: e.target.naturalWidth });
+                            setImageSize({ height: e.target.naturalHeight, width: e.target.naturalWidth })
                         }}
                         id="original-image"
-                        src={url}
+                        src={imageUrl}
                         alt="image" />
                 );
             case tabType.PREVIEW:
@@ -59,12 +65,14 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
                         )
                 if (previewImage == null)
                     return null;
-                var url = URL.createObjectURL(previewImage);
                 var name = image.name.split('.')[0];
                 return (
-                    <a href={url} download={name + '_preview'}>
-                        <img id="preview-image" src={url} />
-                    </a>
+                    <img
+                        onLoad={e => setPreviewImageSize({ height: e.target.naturalHeight, width: e.target.naturalWidth })}
+                        id="preview-image"
+                        src={previewImageUrl}
+                        onClick={e => setZoom(true)}
+                    />
                 );
             case tabType.SUMMARY:
                 return <SummaryContent />
@@ -72,7 +80,16 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
                 return null;
         }
     }
-    
+
+    useEffect(() => {
+        setImageUrl(URL.createObjectURL(image));
+    }, [image]);
+    useEffect(() => {
+        if (previewImage != null)
+            setPreviewImageUrl(URL.createObjectURL(previewImage));
+    }, [previewImage])
+
+    var cursorX = 0, cursorY = 0;
 
     return (
         <div className={'image-preview'}>
@@ -105,6 +122,12 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
             <div className={'image-window'}>
                 {imageWindowContent()}
             </div>
+            <ImagePreviewZoom
+                url={previewImageUrl}
+                previewImageSize={previewImageSize}
+                zoom={zoom}
+                setZoom={setZoom}
+                />
         </div>
         );
 }

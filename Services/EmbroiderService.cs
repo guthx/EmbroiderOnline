@@ -88,6 +88,17 @@ namespace EmroiderOnline.Services
             return null;
         }
 
+        public PixelMap GetPixelMap(string guid)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                return embroider.GetPixelMap();
+            }
+            resetDeletionTimer(Guid.Parse(guid));
+            return null;
+        }
+
         private void setEmbroiderOptions(Embroider.Embroider embroider, OptionsRequest request)
         {
             QuantizerType quantizerType;

@@ -86,7 +86,7 @@ export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, s
                 setSelectedTab={setSelectedTab}
                 setImageSize={setImageSize}
                 summary={summary}
-            />
+                />
             <EmbroiderOptions
                 guid={guid}
                 setPreviewImage={setPreviewImage}
