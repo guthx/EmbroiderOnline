@@ -1,4 +1,13 @@
 /* Provide sufficient contrast against white background */
+html, body, #root {
+    height: 100%
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+}
+
 a {
   color: #0366d6;
 }
@@ -21,11 +30,32 @@ input[type="file"]{
     display: none;
 }
 
+button {
+    background-color: blueviolet;
+    color: white;
+    border-radius: 4px;
+    border: none;
+}
+
+    button:hover {
+        background-color: #41c300;
+    }
+
+    button[disabled] {
+        background-color: gray;
+    }
+
+    button[disabled]:hover {
+        cursor: default;
+        background-color: gray;
+    }
+
 .upload-wrapper {
     display: grid;
     align-items: center;
     justify-items: center;
-    height: 100vh;
+    height: 100%;
+    flex-grow: 100;
 }
 
 .image-upload-window {
@@ -119,10 +149,11 @@ input[type="file"]{
 .main-wrapper {
     display: grid;
     width: 100vw;
-    height: 100vh;
+    height: 50%;
     grid-template-columns: 3vw auto 2vw 350px 3vw;
-    grid-template-rows: 92vh;
+    grid-template-rows: 95%;
     align-content: center;
+    flex-grow: 1;
 }
 
 .image-preview {
@@ -336,10 +367,13 @@ input:checked + .slider:before {
     padding: 10px 20px;
 }
 
+    .options .buttons label {
+        background-color: blueviolet;
+    }
+
     .options .buttons button,
     .options .buttons label
     {
-        background-color: blueviolet;
         border: none;
         border-radius: 4px;
         font-size: 18px;
@@ -349,7 +383,6 @@ input:checked + .slider:before {
         text-align: center;
         margin: 0;
     }
-        .options .buttons button:hover,
         .options .buttons label:hover {
             background-color: #41c300;
             cursor: pointer;
@@ -365,7 +398,7 @@ input:checked + .slider:before {
 
 .MuiDialog-paper {
     width: 400px;
-    height: 160px;
+    height: auto;
 }
 
 .summary {
@@ -569,4 +602,26 @@ input:checked + .slider:before {
 .img-wrapper {
     display: grid;
     height: 100%;
+}
+
+.dialog-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+}
+
+.dialog-content input {
+    width: 250px;
+}
+
+    .dialog-content button {
+        padding: 5px 8px;
+        width: 150px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+.create-project-dialog .warning {
+    margin: 0;
 }

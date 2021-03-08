@@ -1,6 +1,8 @@
 ﻿using Emgu.CV;
 using EmroiderOnline.Models;
+using EmroiderOnline.Models.Requests;
 using EmroiderOnline.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -115,20 +117,36 @@ namespace EmroiderOnline.Controllers
             }
         }
 
-        [HttpGet("pixelMap")]
-        public ActionResult GetPixelMap(string guid)
+        
+        [HttpPost("createProject")]
+        [Authorize]
+        public ActionResult<string> CreateProject([FromBody] CreateProjectRequest request)
         {
             try
             {
-                var map = _embroiderService.GetPixelMap(guid);
-                if (map == null)
-                    return StatusCode(400);
-                return new JsonResult(map);
+                var userId = User.Identity.Name;
+                var response = _embroiderService.CreateProject(request.Guid, userId, request.Name);
+                switch (response)
+                {
+                    case EmbroiderService.CreateProjectResult.Created:
+                        return Ok("Created");
+                    case EmbroiderService.CreateProjectResult.NameTaken:
+                        return BadRequest("You already have a project with that name");
+                    case EmbroiderService.CreateProjectResult.NoImage:
+                        return BadRequest("Timeout");
+                    case EmbroiderService.CreateProjectResult.NotLoggedIn:
+                        return BadRequest("You must be logged in to create a project");
+                    default:
+                        return StatusCode(500);
+                }
+
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return StatusCode(500);
             }
+            
+            
         }
     }
 }

@@ -9,6 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Mvc.NewtonsoftJson;
 using Microsoft.Net.Http.Headers;
+using MongoDB.Driver;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace EmroiderOnline
 {
@@ -34,6 +38,19 @@ namespace EmroiderOnline
                 });
             });
             services.AddControllersWithViews().AddNewtonsoftJson();
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                    {
+                        ValidateAudience = false,
+                        ValidateIssuer = false,
+                        ValidateLifetime = false,
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration.GetValue<string>("jwtSecret")))
+                    };
+                });
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration =>
             {
@@ -41,6 +58,11 @@ namespace EmroiderOnline
             });
             services.AddTransient<EmbroiderController>();
             services.AddTransient<EmbroiderService>();
+            services.AddTransient<UserController>();
+            services.AddTransient<UserService>();
+            services.AddTransient<ProjectController>();
+            services.AddTransient<ProjectService>();
+            services.AddSingleton<IMongoClient>(new MongoClient("mongodb://localhost:27017"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -60,9 +82,10 @@ namespace EmroiderOnline
            // app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
-
+            app.UseAuthentication();
+            
             app.UseRouting();
-
+            app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(

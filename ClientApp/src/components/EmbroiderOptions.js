@@ -2,11 +2,13 @@
 import { useEffect } from 'react';
 import { tabType } from './EmbroiderMain'
 import InfoIcon from '@material-ui/icons/Info';
-import { Tooltip } from '@material-ui/core';
+import { Dialog, DialogTitle, Tooltip } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
 import ArrowRightIcon from '@material-ui/icons/ArrowRight';
 import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 import Collapse from '@material-ui/core/Collapse';
+import { authService } from '../AuthService';
+import CreateProject from './CreateProject';
 
 const quantizerTypes = {
     Octree: "Octree",
@@ -74,7 +76,7 @@ const tooltips = {
 
 }
 
-export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage, setPixelMap }) {
+export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage }) {
     const [stitchSize, setStitchSize] = useState(4);
     const [maxColors, setMaxColors] = useState(32);
     const [outputStitchSize, setOutputStitchSize] = useState(4);
@@ -88,6 +90,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     const [dithererStrength, setDithererStrength] = useState(10);
     const [dimmedInput, setDimmedInput] = useState(sizeInputs.stitchWidth);
     const [advancedTab, setAdvancedTab] = useState(false);
+
 
     useEffect(() => {
         setStitchWidth(parseInt(imageSize.width / stitchSize));
@@ -594,6 +597,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                 </Collapse>
             </div>
             <div className={'buttons'}>
+                <CreateProject guid={guid} />
                 <button type="button" onClick={() => getPreview()}>Generate preview</button>
                 <button type="button" onClick={() => getSpreadsheet()}>Generate spreadsheet</button>
                 <label for="file-upload">
@@ -605,6 +609,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                     accept=".gif, .jpeg, .jpg, .png, .bmp"
                 />
             </div>
+            
         </div>
     );
 }

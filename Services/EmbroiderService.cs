@@ -16,6 +16,7 @@ using System.Drawing.Imaging;
 using OfficeOpenXml;
 using static Embroider.Enums;
 using System.Timers;
+using MongoDB.Driver;
 
 namespace EmroiderOnline.Services
 {
@@ -23,8 +24,11 @@ namespace EmroiderOnline.Services
     {
         private static ConcurrentDictionary<Guid, Embroider.Embroider> _embroiders = new ConcurrentDictionary<Guid, Embroider.Embroider>();
         private static ConcurrentDictionary<Guid, Timer> _deletionTimers = new ConcurrentDictionary<Guid, Timer>();
-        public EmbroiderService() 
-        { 
+        private readonly IMongoCollection<User> _users;
+        public EmbroiderService(IMongoClient client) 
+        {
+            var db = client.GetDatabase("Embroider");
+            _users = db.GetCollection<User>("Users");
         }
 
         public bool CreateEmbroider(IFormFile file, string fileName, string guid)
@@ -87,16 +91,32 @@ namespace EmroiderOnline.Services
             resetDeletionTimer(Guid.Parse(guid));
             return null;
         }
+        public enum CreateProjectResult
+        {
+            Created, NameTaken, NotLoggedIn, NoImage
+        }
 
-        public PixelMap GetPixelMap(string guid)
+        public CreateProjectResult CreateProject(string guid, string userId, string name)
         {
             Embroider.Embroider embroider;
             if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
             {
-                return embroider.GetPixelMap();
+                var user = _users.Find(u => u.Id == userId).FirstOrDefault();
+                if (user == null)
+                    return CreateProjectResult.NotLoggedIn;
+                if (user.Projects != null && user.Projects.Exists(p => p.Name == name))
+                    return CreateProjectResult.NameTaken;
+                var image = embroider.GenerateImage();
+                var stitchMap = embroider.GetStitchMap();
+
+                var project = new Project(name, stitchMap, image);
+
+                _users.UpdateOne(u => u.Id == userId, Builders<User>.Update.AddToSet(u => u.Projects, project));
+                return CreateProjectResult.Created;
+
             }
             resetDeletionTimer(Guid.Parse(guid));
-            return null;
+            return CreateProjectResult.NoImage;
         }
 
         private void setEmbroiderOptions(Embroider.Embroider embroider, OptionsRequest request)

@@ -1,0 +1,15 @@
+﻿.stitch-image {
+    display: grid;
+    overflow: hidden;
+}
+
+.stitch {
+    height: 100%;
+    width: 100%;
+    opacity: 0.4;
+    color: black;
+    text-align: center;
+    border: 1px solid black;
+    font-size: 12px;
+    transition: opacity ease 0.2s;
+}
