@@ -13,7 +13,7 @@ function Stitches({ stitches, colors }) {
                     <Stitch
                         key={stitch.x * 1024 + stitch.y}
                         id={stitch.x * 1024 + stitch.y}
-                        color={colorHex}
+                        color={color}
                         x={stitch.x * 10}
                         y={stitch.y * 10}
                     />
@@ -23,4 +23,4 @@ function Stitches({ stitches, colors }) {
         );
 }
 
-export default React.memo(Stitches)
+export default Stitches
