@@ -1,4 +1,8 @@
-﻿.stitch-image {
+﻿:root {
+    --number-size: 0px
+}
+
+.stitch-image {
     display: grid;
     overflow: hidden;
 
@@ -17,8 +21,71 @@
 
 .stitch-wrapper {
     overflow: hidden;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    grid-row: 2;
+    grid-column: 2;
 }
 
 #stitch-canvas {
     transform-origin: 0 0;
+    position: absolute;
+}
+
+#grid-canvas {
+    position: absolute;
+    pointer-events: none;
+}
+
+#transform-wrapper {
+    transform-origin: 0 0;
+    position: relative;
+}
+
+.project-wrapper {
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 40px auto;
+    grid-template-rows: 40px auto;
+    position:relative;
+}
+
+.guide-horizontal {
+    grid-row: 1;
+    grid-column: 2;
+    position: absolute;
+    display: grid;
+    grid-auto-flow: column;
+    top: 7px;
+}
+
+.guide-horizontal .guide-number {
+    width: var(--number-size);
+}
+
+.guide-number {
+    text-align: center;
+    font-size: 20px;
+}
+
+.guide-vertical {
+    grid-row: 2;
+    grid-column: 1;
+    position: absolute;
+    display: grid;
+    grid-auto-flow: row;
+    left: 5px;
+}
+
+    .guide-vertical .guide-number {
+        height: var(--number-size);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+#zoom-canvas {
+    position: absolute;
+    pointer-events: none;
 }
