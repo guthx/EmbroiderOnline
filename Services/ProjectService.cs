@@ -11,6 +11,7 @@ namespace EmroiderOnline.Services
     public class ProjectService
     {
         private readonly IMongoCollection<User> _users;
+        private static Dictionary<string, InMemoryProject> _usersProjects = new Dictionary<string, InMemoryProject>();
 
         public ProjectService(IMongoClient client)
         {
@@ -27,7 +28,7 @@ namespace EmroiderOnline.Services
             return user.Projects;
         }
 
-        public GetProjectResponse GetProject(string userId, string name)
+        public InMemoryProject GetProject(string userId, string name, string connectionId)
         {
             var user = _users.Find(u => u.Id == userId).FirstOrDefault();
             if (user == null)
@@ -35,8 +36,41 @@ namespace EmroiderOnline.Services
             var project = user.Projects.Where(p => p.Name == name).FirstOrDefault();
             if (project == null)
                 return null;
+            var inMemoryProject = new InMemoryProject(project, userId);
+            _usersProjects[connectionId] = inMemoryProject;
+            return inMemoryProject;
+        }
 
-            return new GetProjectResponse(project);
+        public bool UpdateStitches(string connectionId, Position[] stitches)
+        {
+            InMemoryProject project;
+            if (_usersProjects.TryGetValue(connectionId, out project))
+            {
+                foreach (var stitch in stitches)
+                {
+                    project.StitchMap.Stitches[stitch.Y, stitch.X].Stitched = !project.StitchMap.Stitches[stitch.Y, stitch.X].Stitched;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public void UpdateProject(string connectionId)
+        {
+            InMemoryProject inMemoryProject;
+            if (_usersProjects.TryGetValue(connectionId, out inMemoryProject))
+            {
+                var project = _users
+                    .Find(u => u.Id == inMemoryProject.UserId)
+                    .FirstOrDefault()
+                    .Projects
+                    .Find(p => p.Name == inMemoryProject.Name);
+                project.UpdateStitchMap(inMemoryProject.StitchMap);
+                _users.UpdateOne(
+                    filter: u => u.Id == inMemoryProject.UserId && u.Projects.Any(p => p.Name == inMemoryProject.Name),
+                    update: Builders<User>.Update.Set(p => p.Projects[-1], project)
+                    );
+            }
         }
     }
 }

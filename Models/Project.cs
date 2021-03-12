@@ -47,7 +47,7 @@ namespace EmroiderOnline.Models
             FinishedStitches = 0;
         }
 
-        public void UpdateStitchMap(StitchMap map)
+        public Project UpdateStitchMap(StitchMap map)
         {
             var count = 0;
             for (int i=0; i<map.Stitches.GetLength(0); i++)
@@ -63,6 +63,7 @@ namespace EmroiderOnline.Models
                 StitchMap = ms.ToArray();
             }
             FinishedStitches = count;
+            return this;
         }
 
         public byte[] ToByteArray()

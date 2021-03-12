@@ -37,7 +37,7 @@ namespace EmroiderOnline.Controllers
                 return StatusCode(500);
             }
         }
-
+        /*
         [HttpGet("{id}")]
         [Authorize]
         public ActionResult GetProject(string id)
@@ -56,5 +56,6 @@ namespace EmroiderOnline.Controllers
                 return StatusCode(500);
             }
         }
+        */
     }
 }

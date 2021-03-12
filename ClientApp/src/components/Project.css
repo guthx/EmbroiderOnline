@@ -1,6 +1,7 @@
 ﻿.stitch-image {
     display: grid;
     overflow: hidden;
+
 }
 
 .stitch {
@@ -12,4 +13,12 @@
     border: 1px solid black;
     font-size: 12px;
     transition: opacity ease 0.2s;
+}
+
+.stitch-wrapper {
+    overflow: hidden;
+}
+
+#stitch-canvas {
+    transform-origin: 0 0;
 }

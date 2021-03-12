@@ -55,7 +55,8 @@ namespace EmroiderOnline.Services
             {
                 Subject = new ClaimsIdentity(new[]
                 {
-                    new Claim(ClaimTypes.Name, user.Id)
+                    new Claim(ClaimTypes.Name, user.Id),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id)
                 }),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)), SecurityAlgorithms.HmacSha256Signature)
             };

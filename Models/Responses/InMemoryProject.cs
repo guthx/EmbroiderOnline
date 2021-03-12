@@ -1,4 +1,5 @@
 ﻿using Embroider;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,12 +9,14 @@ using System.Threading.Tasks;
 
 namespace EmroiderOnline.Models.Responses
 {
-    public class GetProjectResponse
+    public class InMemoryProject
     {
+        [JsonIgnore]
+        public string UserId { get; set; }
         public string Name { get; set; }
         public StitchMap StitchMap { get; set; }
 
-        public GetProjectResponse(Project project)
+        public InMemoryProject(Project project, string userId)
         {
             using (var ms = new MemoryStream())
             {
@@ -23,6 +26,7 @@ namespace EmroiderOnline.Models.Responses
                 StitchMap = (StitchMap)bf.Deserialize(ms);
             }
             Name = project.Name;
+            UserId = userId;
         }
     }
 }

@@ -13,6 +13,9 @@ using MongoDB.Driver;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.SignalR;
+using Newtonsoft.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace EmroiderOnline
 {
@@ -42,6 +45,25 @@ namespace EmroiderOnline
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
+                    options.Events = new JwtBearerEvents
+                    {
+                        
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"].ToString();
+                            if (accessToken == "" && context.Request.Headers["Authorization"].Count > 0)
+                            {
+                                accessToken = context.Request.Headers["Authorization"].ToString().Substring(7);
+                            }
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs/project")))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                        
+                    };
                     options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
                     {
                         ValidateAudience = false,
@@ -63,6 +85,15 @@ namespace EmroiderOnline
             services.AddTransient<ProjectController>();
             services.AddTransient<ProjectService>();
             services.AddSingleton<IMongoClient>(new MongoClient("mongodb://localhost:27017"));
+            services.AddSignalR().AddNewtonsoftJsonProtocol(options =>
+            {
+                options.PayloadSerializerSettings.ContractResolver = new DefaultContractResolver
+                {
+                    NamingStrategy = new CamelCaseNamingStrategy()
+                };
+                options.PayloadSerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
+                options.PayloadSerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -88,6 +119,7 @@ namespace EmroiderOnline
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHub<ProjectHub>("hubs/project");
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller}/{action=Index}/{id?}");
