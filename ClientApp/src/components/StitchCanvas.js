@@ -19,7 +19,6 @@ function StitchCanvas({ mouseMove, setCanvas, height, width, mouseDown, mouseUp 
             ref={ctxRef}
             height={height}
             width={width}
-            onMouseMove={e => mouseMove(e)}
             onMouseDown={e => mouseDown(e)}
             onMouseUp={e => mouseUp()}
             onContextMenu={e => e.preventDefault()}

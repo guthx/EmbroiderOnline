@@ -48,7 +48,8 @@
     display: grid;
     grid-template-columns: 40px auto;
     grid-template-rows: 40px auto;
-    position:relative;
+    position: relative;
+    box-shadow: 2px 2px 3px 1px grey;
 }
 
 .guide-horizontal {
@@ -89,3 +90,64 @@
     position: absolute;
     pointer-events: none;
 }
+
+.project-editor {
+    display: grid;
+    width: 95%;
+    height: calc(95% - 40px);
+    grid-template-columns: 80px auto;
+    margin: auto;
+}
+
+.toolbar {
+    display: grid;
+    grid-auto-rows: max-content;
+    background: white;
+    border: 1px solid lightgray;
+    align-content: center;
+}
+
+.toolbar-group {
+    display: grid;
+    grid-auto-rows: 64px;
+    grid-row-gap: 5px;
+    border-bottom: 2px solid black;
+    padding: 8px 0px;
+}
+
+.toolbar-group:last-of-type {
+    border-bottom: none;
+}
+
+.toolbar-item {
+    display: flex;
+    font-size: 34px;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+}
+
+    .toolbar-item div {
+        width: 80%;
+        display: flex;
+        height: 100%;
+        justify-content: center;
+        border-radius: 6px;
+        align-items: center;
+    }
+
+    .toolbar-item div:hover {
+        background-color: #41c300;
+        cursor: pointer;
+    }
+
+    .toolbar-item div.selected {
+        background-color: blueviolet;
+    }
+    .toolbar-item div svg {
+        color: black;
+    }
+    .toolbar-item div.selected svg {
+        filter: invert(1);
+    }

@@ -96,6 +96,7 @@ export default function Project() {
 
     useEffect(() => {
         if (canvas) {
+            canvas.addEventListener('mousemove', e => mouseMove(e));
             canvasContext = canvas.getContext('2d');
             canvasContext.font = "bold 20px Roboto";
             canvasContext.textAlign = 'center';
@@ -110,6 +111,7 @@ export default function Project() {
             zoomCanvasContext.lineWidth = 10;
             transformWrapper.current.style.width = `${canvas.width * scale}px`;
             transformWrapper.current.style.height = `${canvas.height * scale}px`;
+            setCanvasCursor('grab');
             setGuideStyles();
             
             redrawCanvas();
@@ -146,6 +148,13 @@ export default function Project() {
             gridCanvas.current.style.display = 'none';
         drawGuideGrid();
 
+    }
+
+    const enableZoomCanvas = (enable) => {
+        if (enable)
+            zoomCanvas.current.style.display = 'block';
+        else
+            zoomCanvas.current.style.display = 'none';
     }
 
     const getMinScale = () => {
@@ -454,6 +463,11 @@ export default function Project() {
         zoomCanvasContext.strokeRect(rectX, rectY, width, height);
     }
 
+    const setCanvasCursor = (cursorType) => {
+        if (canvas)
+            canvas.style.cursor = cursorType;
+    }
+
     const GuideHorizontal = () => {
         var numbers = [];
         for (let i = 0; i < stitchArray[0].length; i += 10) {
@@ -464,7 +478,7 @@ export default function Project() {
             <div ref={guideHorizontal} className={'guide-horizontal'}>
                 {
                     numbers.map((num) => (
-                        <div className={'guide-number'}>
+                        <div key={num} className={'guide-number'}>
                             {num == 0 ? '' : num}
                         </div>
                         ))
@@ -483,7 +497,7 @@ export default function Project() {
             <div ref={guideVertical} className={'guide-vertical'}>
                 {
                     numbers.map((num) => (
-                        <div className={'guide-number'}>
+                        <div key={num} className={'guide-number'}>
                             {num == 0 ? '' : num}
                         </div>
                     ))
@@ -498,7 +512,18 @@ export default function Project() {
     
 
     return (
-        <>
+        <div className={'project-editor'}>
+            <Toolbar
+                settingsRef={settings}
+                setSelectedColorRef={setSelectedColor}
+                setHoverColorRef={setHoverColor}
+                redrawCanvas={redrawCanvas}
+                setPrevCursorModeRef={setPrevCursorMode}
+                setCanvasCursor={setCanvasCursor}
+                zoomOut={zoomOut}
+                enableZoomCanvas={enableZoomCanvas}
+                colors={colors}
+            />
             <div className={'project-wrapper'}>
                 <GuideHorizontal />
                 <GuideVertical />
@@ -537,14 +562,6 @@ export default function Project() {
                     </div>
                 </div>
             </div>
-            <Toolbar
-                settingsRef={settings}
-                setSelectedColorRef={setSelectedColor}
-                setHoverColorRef={setHoverColor}
-                redrawCanvas={redrawCanvas}
-                setPrevCursorModeRef={setPrevCursorMode}
-                zoomOut={zoomOut}
-            />
-        </>
+        </div>
     );
 }
