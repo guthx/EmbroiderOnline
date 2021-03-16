@@ -60,12 +60,12 @@ export default function ProjectList() {
                             Progress: ({project.finishedStitches}/{project.totalStitches})
                         </div>
                         <div className={'progress-bar'}>
-                            <div className={'progress-bar-text'}>
-                                {project.finishedStitches / project.totalStitches}%
+                                <div className={'progress-bar-text'}>
+                                    {Math.round((project.finishedStitches / project.totalStitches) * 100)}%
                             </div>
                             <div className={'progress-bar-fill'}
                                 style={
-                                    { width: `${project.finishedStitches / project.totalStitches}%` }
+                                    { width: `${(project.finishedStitches / project.totalStitches)*100}%` }
                                 }>
                             </div>
                         </div>

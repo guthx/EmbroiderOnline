@@ -39,13 +39,15 @@ export default function NavMenu() {
                             <div className={'nav-item username'}>
                                 Logged in as {currentUser.username}
                             </div>
-                                <div className={'nav-item'}>
-                                    <div className={'nav-button'}>
-                                        <Link to="/projects">My projects</Link>
+                                <Link to="/projects">
+                                    <div className={'nav-item'}>
+                                        <div className={'nav-button'}>
+                                            My projects
                                     </div>
-                                </div>
-                        </>
-            }
+                                    </div>
+                                </Link>
+                            </>
+                    }
             </nav>
                 
             

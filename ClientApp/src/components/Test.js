@@ -6,34 +6,56 @@ import panIcon from '@iconify-icons/grommet-icons/pan';
 import { Icon, InlineIcon } from '@iconify/react';
 import eraserSolid from '@iconify-icons/clarity/eraser-solid';
 import lockSolid from '@iconify-icons/clarity/lock-solid';
+import settingsSolid from '@iconify-icons/clarity/settings-solid';
+import colorPaletteSolid from '@iconify-icons/clarity/color-palette-solid';
+
+import { CompactPicker } from 'react-color';
 
 
 
 
-export default function Toolbar({ settingsRef, setSelectedColorRef, setHoverColorRef, redrawCanvas, setPrevCursorModeRef, zoomOut, enableZoomCanvas, setCanvasCursor, colors }) {
+export default function Toolbar({
+    settingsRef,
+    setSelectedColorRef,
+    setHoverColorRef,
+    redrawCanvas,
+    setPrevCursorModeRef,
+    zoomOut,
+    enableZoomCanvas,
+    setCanvasCursor,
+    colors,
+    setStitchCountsRef,
+    updateStitchCountsRef,
+}) {
     const [cursorMode, setCursorMode] = useState(cursorModes.PAN);
     const [selectedColor, setSelectedColor] = useState(null);
     setSelectedColorRef.current = setSelectedColor;
     const [hoverColor, setHoverColor] = useState(0);
     setHoverColorRef.current = setHoverColor;
     const [colorLock, setColorLock] = useState(false);
-    const [colorMode, setColorMode] = useState(colorModes.OPAQUE_TO_COLOR);
+    const [colorMode, setColorMode] = useState(colorModes.TRANSPARENT_TO_OPAQUE);
     const [prevCursorMode, setPrevCursorMode] = useState(cursorModes.PAN);
-    
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [customColor, setCustomColor] = useState('#fff');
+    const [stitchCounts, setStitchCounts] = useState([]);
+    const [stitchCountMenu, setStitchCountMenu] = useState(false);
+    setStitchCountsRef.current = setStitchCounts;
     const isInitialMount = useRef(true);
     useEffect(() => {
         settingsRef.current = {
             cursorMode: cursorMode,
             selectedColor: selectedColor,
             colorMode: colorMode,
-            colorLock: colorLock
+            colorLock: colorLock,
+            customColor: customColor
         };
-    }, [cursorMode, selectedColor, colorMode, colorLock]);
+    }, [cursorMode, selectedColor, colorMode, colorLock, customColor]);
     useEffect(() => {
         switch (cursorMode) {
             case cursorModes.ZOOM:
                 setCanvasCursor('zoom-in');
                 enableZoomCanvas(true);
+                zoomOut();
                 break;
             case cursorModes.PAN:
                 setCanvasCursor('grab');
@@ -57,59 +79,113 @@ export default function Toolbar({ settingsRef, setSelectedColorRef, setHoverColo
             isInitialMount.current = false;
         else
             redrawCanvas();
-    }, [colorLock, colorMode])
+    }, [colorLock, colorMode, customColor]);
 
-    const revertCursorMode = () => {
+    function revertCursorMode() {
         setCursorMode(prevCursorMode);
         if (prevCursorMode == cursorModes.PAN)
             setCanvasCursor('grab');
         else
             setCanvasCursor('auto');
     }
-
     setPrevCursorModeRef.current = revertCursorMode;
+
+    function updateStitchCounts(changes) {
+        let stitchCounts2 = [...stitchCounts];
+        for (let i = 0; i < changes.length; i++) {
+            if (changes[i]) {
+                stitchCounts2[i].stitched += changes[i];
+            }
+        }
+        setStitchCounts(stitchCounts2);
+    }
+    updateStitchCountsRef.current = updateStitchCounts;
+
     var toolbarColor;
     if (selectedColor)
         toolbarColor = colors[selectedColor];
     else
         toolbarColor = colors[hoverColor];
-    
+
+    function handlePanMode(e) {
+        setCursorMode(cursorModes.PAN);
+    }
+    function handleZoomMode(e) {
+        if (cursorMode != cursorModes.ZOOM) {
+            setPrevCursorMode(cursorMode);
+            setCursorMode(cursorModes.ZOOM);
+        }
+    }
+    function handleStitchMode(e) {
+        setCanvasCursor('auto');
+        setCursorMode(cursorModes.STITCH);
+    }
+    function handleEraseMode(e) {
+        setCanvasCursor('auto');
+        setCursorMode(cursorModes.ERASE);
+    }
+    function handleColorLock(e) {
+        if (cursorMode == cursorModes.SELECT) {
+            setCursorMode(prevCursorMode);
+        }
+        else if (colorLock) {
+            setSelectedColor(null);
+        }
+        else {
+            setPrevCursorMode(cursorMode);
+            setCursorMode(cursorModes.SELECT);
+            setStitchCountMenu(true);
+            setSettingsOpen(false);
+        }
+    }
+    function handleSettingsOpen(e) {
+        setSettingsOpen(!settingsOpen);
+        setStitchCountMenu(false);
+    }
+    function handleColorModeTTO(e) {
+        setColorMode(colorModes.TRANSPARENT_TO_OPAQUE);
+    }
+    function handleColorModeOTC(e) {
+        setColorMode(colorModes.OPAQUE_TO_COLOR);
+    }
+    function handleColorChange(color) {
+        setCustomColor(color.hex);
+    }
+    function handleStitchCountMenu(e) {
+        setStitchCountMenu(!stitchCountMenu);
+        setSettingsOpen(false);
+    }
+    function handleColorClick(color) {
+        if (cursorMode == cursorModes.SELECT) {
+            setSelectedColor(color);
+            setStitchCountMenu(false);
+        }
+            
+    }
 
     return (
         <div className={'toolbar'}>
             <div className={'toolbar-group'}>
                 <div className={'toolbar-item'}>
                     <div
-                        className={`${cursorMode == cursorModes.PAN ? 'selected' : ''}`}
-                        onClick={() => {
-                            setCursorMode(cursorModes.PAN);
-                        }}
+                        className={`icon ${cursorMode == cursorModes.PAN ? 'selected' : ''}`}
+                        onClick={handlePanMode}
                     >
                         <Icon icon={panIcon} />
                     </div>
                 </div>
                 <div className={'toolbar-item'}>
                     <div
-                        className={`${cursorMode == cursorModes.ZOOM ? 'selected' : ''}`}
-                        onClick={() => {
-                            if (cursorMode != cursorModes.ZOOM) {
-                                setPrevCursorMode(cursorMode);
-                                setCursorMode(cursorModes.ZOOM);
-                                zoomOut();
-                            }
-                            
-                        }}
+                        className={`icon ${cursorMode == cursorModes.ZOOM ? 'selected' : ''}`}
+                        onClick={handleZoomMode}
                     >
                         <ZoomInIcon fontSize={'inherit'} />
                     </div>
                 </div>
                 <div className={'toolbar-item'}>
                     <div
-                        className={`${cursorMode == cursorModes.STITCH ? 'selected' : ''}`}
-                        onClick={() => {
-                            setCanvasCursor('auto');
-                            setCursorMode(cursorModes.STITCH);
-                        }}>
+                        className={`icon ${cursorMode == cursorModes.STITCH ? 'selected' : ''}`}
+                        onClick={handleStitchMode} >
                         <svg viewBox="0 0 128 128" width="1em" height="1em" xmlns="http://www.w3.org/2000/svg" class="iconify icon:noto:sewing-needle" preserveAspectRatio="xMidYMid meet">
                             <g>
                                 <title>Layer 1</title>
@@ -126,24 +202,24 @@ export default function Toolbar({ settingsRef, setSelectedColorRef, setHoverColo
                 </div>
                 <div className={'toolbar-item'}>
                     <div
-                        className={`${cursorMode == cursorModes.ERASE ? 'selected' : ''}`}
-                        onClick={() => {
-                            setCanvasCursor('auto');
-                            setCursorMode(cursorModes.ERASE);
-                        }}>
+                        className={`icon ${cursorMode == cursorModes.ERASE ? 'selected' : ''}`}
+                        onClick={handleEraseMode}>
                         <Icon icon={eraserSolid} />
                     </div>
                 </div>
             </div>
             <div className={'toolbar-group'}>
                 <div className={'toolbar-item'}>
-                    <div style={{
-                        backgroundColor: `rgb(${toolbarColor.red}, ${toolbarColor.green}, ${toolbarColor.blue})`,
-                        fontSize: '22px',
-                        color: (0.299 * toolbarColor.red + 0.587 * toolbarColor.green + 0.114 * toolbarColor.blue) / 255 > 0.5 ? 'black' : 'white',
-                        textAlign: 'center',
-                    }}>
-                        DMC<br/>
+                    <div
+                        className={'icon'}
+                        style={{
+                            backgroundColor: `rgb(${toolbarColor.red}, ${toolbarColor.green}, ${toolbarColor.blue})`,
+                            fontSize: '22px',
+                            color: (0.299 * toolbarColor.red + 0.587 * toolbarColor.green + 0.114 * toolbarColor.blue) / 255 > 0.5 ? 'black' : 'white',
+                            textAlign: 'center',
+                            pointerEvents: 'none'
+                        }}>
+                        DMC<br />
                         {
                             toolbarColor.number
                         }
@@ -151,47 +227,104 @@ export default function Toolbar({ settingsRef, setSelectedColorRef, setHoverColo
                 </div>
                 <div className={'toolbar-item'}>
                     <div
-                        className={`${cursorMode == cursorModes.SELECT || colorLock ? 'selected' : ''}`}
-                        onClick={() => {
-                            if (cursorMode == cursorModes.SELECT) {
-                                setCursorMode(prevCursorMode);
-                            }
-                            else if (colorLock) {
-                                setColorLock(false);
-                            }
-                            else {
-                                setPrevCursorMode(cursorMode);
-                                setCursorMode(cursorModes.SELECT);
-                            }  
-                        }}
+                        className={`icon ${cursorMode == cursorModes.SELECT || colorLock ? 'selected' : ''}`}
+                        onClick={handleColorLock}
                     >
                         <Icon icon={lockSolid} />
                     </div>
                 </div>
             </div>
-            
+            <div className={'toolbar-group'}>
+                <div className={'toolbar-item'}>
+                    <div
+                        className={`icon ${settingsOpen ? 'selected' : ''}`}
+                        onClick={handleSettingsOpen}
+                    >
+                        <Icon icon={settingsSolid} />
+                    </div>
+                    <div className={`settings ${settingsOpen ? '' : 'hidden'}`}>
+                        <div className={'title'}>
+                            Color mode
+                        </div>
+                        <div className="option">
+                            <input
+                                type="checkbox"
+                                checked={colorMode == colorModes.TRANSPARENT_TO_OPAQUE}
+                                onChange={handleColorModeTTO}
+                            />
+                            <div>
+                                Transparent when not stitched, opaque when stitched
+                            </div>
+                        </div>
+                        <div className="option">
+                            <input
+                                type="checkbox"
+                                checked={colorMode == colorModes.OPAQUE_TO_COLOR}
+                                onChange={handleColorModeOTC}
+                            />
+                            <div>
+                                Opaque when not stitched, custom color when stitched
+                            </div>
+                        </div>
+                        <div
+                            className={`${colorMode == colorModes.OPAQUE_TO_COLOR ? '' : 'disabled'}`}
+                        >
+                            <CompactPicker
+                                color={customColor}
+                                onChangeComplete={handleColorChange}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className={'toolbar-item'}>
+                    <div
+                        className={`icon ${stitchCountMenu ? 'selected' : ''}`}
+                        onClick={handleStitchCountMenu}
+                    >
+                        <Icon icon={colorPaletteSolid} />
+                    </div>
+                    <div className={`stitch-count-menu ${stitchCountMenu ? '' : 'hidden'}`}>
+                        {
+                            stitchCounts.map((stitchCount, i) => {
+                                if (stitchCount.total > 0)
+                                    return (
+                                        <div key={i} className={'stitch-count'}>
+                                            <div>
+                                                {i}:
+                                    </div>
+                                            <div>
+                                                DMC {colors[i].number}
+                                            </div>
+                                            <div
+                                                className={'color-preview'}
+                                                style={{
+                                                    backgroundColor: `rgb(${colors[i].red}, ${colors[i].green}, ${colors[i].blue})`,
+                                                    cursor: `${cursorMode == cursorModes.SELECT ? 'pointer' : 'auto'}`
+                                                }}
+                                                onClick={() => handleColorClick(i)}
+                                            >
+                                            </div>
+                                            <div style={{
+                                                textAlign: 'center'
+                                            }}>
+                                                {stitchCount.stitched}
+                                            </div>
+                                            <div>
+                                                /
+                                    </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                {stitchCount.total}
+                                            </div>
+                                        </div>
+                                    );
+                                else
+                                    return null;
+                            })
+                        }
+                    </div>
+                </div>
+            </div>
+
         </div>
     );
 }
-
-
-/*
- * <div>{cursorMode}</div>
-            <button onClick={() => setCursorMode(cursorModes.STITCH)}>stitch</button>
-            <button onClick={() => setCursorMode(cursorModes.ERASE)}> unstitch</button>
-            <button onClick={() => setCursorMode(cursorModes.PAN)}>pan</button>
-            <button onClick={() => {
-                setPrevCursorMode(cursorMode);
-                setCursorMode(cursorModes.SELECT);
-            }
-            }>select</button>
-            <button onClick={() => setColorLock(!colorLock)}>colorlock</button>
-            <button onClick={() => {
-                setPrevCursorMode(cursorMode);
-                setCursorMode(cursorModes.ZOOM);
-                zoomOut();
-            }}>zoom</button>
-            <div>{selectedColor}</div>
-            <div>{colorLock}</div>
-            <div>{hoverColor}</div>
-            */
