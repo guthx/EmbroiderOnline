@@ -28,16 +28,26 @@ namespace EmroiderOnline.Services
             return user.Projects;
         }
 
-        public InMemoryProject GetProject(string userId, string name, string connectionId)
+        public InMemoryProject GetProject(string userId, string name)
         {
+            InMemoryProject inMemoryProject;
+            if (_usersProjects.TryGetValue(userId, out inMemoryProject))
+            {
+                if (inMemoryProject.Name == name)
+                    return inMemoryProject;
+                else
+                {
+                    UpdateProject(userId, true);
+                }
+            }
             var user = _users.Find(u => u.Id == userId).FirstOrDefault();
             if (user == null)
                 return null;
             var project = user.Projects.Where(p => p.Name == name).FirstOrDefault();
             if (project == null)
                 return null;
-            var inMemoryProject = new InMemoryProject(project, userId);
-            _usersProjects[connectionId] = inMemoryProject;
+            inMemoryProject = new InMemoryProject(project, userId);
+            _usersProjects[userId] = inMemoryProject;
             return inMemoryProject;
         }
 
@@ -55,10 +65,10 @@ namespace EmroiderOnline.Services
             return false;
         }
 
-        public void UpdateProject(string connectionId)
+        public void UpdateProject(string userId, bool removeFromMemory = false)
         {
             InMemoryProject inMemoryProject;
-            if (_usersProjects.TryGetValue(connectionId, out inMemoryProject))
+            if (_usersProjects.TryGetValue(userId, out inMemoryProject))
             {
                 var project = _users
                     .Find(u => u.Id == inMemoryProject.UserId)
@@ -70,6 +80,9 @@ namespace EmroiderOnline.Services
                     filter: u => u.Id == inMemoryProject.UserId && u.Projects.Any(p => p.Name == inMemoryProject.Name),
                     update: Builders<User>.Update.Set(p => p.Projects[-1], project)
                     );
+
+                if (removeFromMemory)
+                    _usersProjects.Remove(userId);
             }
         }
     }

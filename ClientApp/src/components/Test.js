@@ -21,7 +21,6 @@ export default function Toolbar({
     redrawCanvas,
     setPrevCursorModeRef,
     zoomOut,
-    enableZoomCanvas,
     setCanvasCursor,
     colors,
     setStitchCountsRef,
@@ -54,16 +53,13 @@ export default function Toolbar({
         switch (cursorMode) {
             case cursorModes.ZOOM:
                 setCanvasCursor('zoom-in');
-                enableZoomCanvas(true);
                 zoomOut();
                 break;
             case cursorModes.PAN:
                 setCanvasCursor('grab');
-                enableZoomCanvas(false);
                 break;
             default:
                 setCanvasCursor('auto');
-                enableZoomCanvas(false);
                 break;
         }
     }, [cursorMode]);
@@ -162,6 +158,8 @@ export default function Toolbar({
         }
             
     }
+    if (colors.length == 0)
+        return null;
 
     return (
         <div className={'toolbar'}>
