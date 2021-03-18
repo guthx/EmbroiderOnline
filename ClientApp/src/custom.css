@@ -563,7 +563,7 @@ input:checked + .slider:before {
 
 .background-dim.active {
     display: block;
-    z-index: 3;
+    z-index: 11;
 }
 
     .background-dim img {

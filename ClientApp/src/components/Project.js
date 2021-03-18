@@ -7,6 +7,10 @@ import StitchCanvas from './StitchCanvas';
 import Toolbar from './Test';
 import * as signalR from '@microsoft/signalr';
 import { Color } from 'p5';
+import Spinner from './Spinner';
+import { Icon, InlineIcon } from '@iconify/react';
+import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
+
 
 export const cursorModes = {
     SELECT: 0,
@@ -31,7 +35,7 @@ export default function Project() {
         colorMode: colorModes.OPAQUE_TO_COLOR,
         customColor: 'fff',
     });
-    
+
     const { id } = useParams();
     const [stitches, setStitches] = useState([]);
     const [hubConnection, setHubConnection] = useState(null);
@@ -39,6 +43,7 @@ export default function Project() {
     const [reconnecting, setReconnecting] = useState(false);
     const [disconnected, setDisconnected] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const [projectAlreadyOpen, setProjectAlreadyOpen] = useState(false);
 
     const setSelectedColor = useRef();
     const setHoverColor = useRef();
@@ -66,11 +71,6 @@ export default function Project() {
     let posX = 0;
     let posY = 0;
 
-    let prevZoomX = 0;
-    let prevZoomY = 0;
-    let currentZoomX = 0;
-    let currentZoomY = 0;
-
     useEffect(() => {
         var hub = new signalR.HubConnectionBuilder()
             .withUrl('/hubs/project', {
@@ -88,6 +88,9 @@ export default function Project() {
                 setColors(project.stitchMap.dmcFlosses);
             }
         });
+        hub.on('projectAlreadyOpen', () => {
+            setProjectAlreadyOpen(true);
+        });
         hub.onreconnecting(() => {
             setReconnecting(true);
         });
@@ -95,18 +98,19 @@ export default function Project() {
             hub.invoke('GetProject', id);
         });
         hub.onclose(() => {
-            setReconnecting(false);
-            setDisconnected(true);
+            if (canvasContext) {
+                setReconnecting(false);
+                setDisconnected(true);
+            }
         });
         hub.start()
             .then(() => {
                 setHubConnection(hub);
             });
 
-        
+
 
         return () => {
-            hub.stop();
             canvasContext = null;
             gridCanvasContext = null;
             stitchArray = null;
@@ -115,14 +119,15 @@ export default function Project() {
             scale = null;
             posX = null;
             posY = null;
-
-            prevZoomX = null;
-            prevZoomY = null;
-            currentZoomX = null;
-            currentZoomY = null;
+            hub.stop();
         }
 
     }, []);
+
+    useEffect(() => {
+        if (projectAlreadyOpen)
+            hubConnection.stop();
+    }, [projectAlreadyOpen])
 
     useEffect(() => {
         if (hubConnection) {
@@ -148,13 +153,13 @@ export default function Project() {
             setGuideStyles();
 
             redrawCanvas();
-        }   
+            setLoaded(true);
+            setReconnecting(false);
+        }
     }, [colors])
 
 
     function loadCanvas() {
-        
-        setLoaded(true); 
         canvasContext.canvas.width = stitches[0].length * STITCH_SIZE;
         canvasContext.canvas.height = stitches.length * STITCH_SIZE;
         canvasContext.font = "bold 20px Roboto";
@@ -170,12 +175,8 @@ export default function Project() {
         setCanvasCursor('grab');
         setStitches(stitches);
         setColors(colors);
-        
-        
-        setReconnecting(false);
-        
     }
-    
+
 
     const setGuideStyles = () => {
         document.documentElement.style.setProperty('--number-size', `${STITCH_SIZE * 10 * scale}px`);
@@ -274,12 +275,12 @@ export default function Project() {
             var color = colors[stitchArray[y][x].colorIndex];
             if (settings.current.colorLock) {
                 if (settings.current.selectedColor == stitchArray[y][x].colorIndex) {
-                    
+
                     canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, ${alpha})`;
                     canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
                     canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
                     canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
-                    
+
                 }
                 else {
                     canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, 0.2)`;
@@ -325,10 +326,10 @@ export default function Project() {
                 canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
                 canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
             }
-            
+
         }
-       // canvasContext.closePath();
-        
+        // canvasContext.closePath();
+
     }
 
     const mouseMove = (e) => {
@@ -351,13 +352,6 @@ export default function Project() {
         else if (mousePressed == 2) {
             pan(e);
         }
-        else if (mousePressed == -1 && settings.current.cursorMode == cursorModes.ZOOM) {
-            setTimeout(() => {
-                currentZoomX = pos.x;
-                currentZoomY = pos.y;
-            }, 15);
-            
-        }
         setHoverColor.current(stitchArray[y][x].colorIndex);
     }
 
@@ -371,7 +365,6 @@ export default function Project() {
     }
 
     const mouseDown = (e) => {
-        console.log('test');
         mousePressed = e.button;
         if (mousePressed == 0) {
             var pos = getMousePos(e);
@@ -422,7 +415,7 @@ export default function Project() {
     const completeStitch = (x, y) => {
         if (!stitchArray[y][x].stitched &&
             (settings.current.colorLock == false || settings.current.selectedColor == stitchArray[y][x].colorIndex) &&
-            !selectedStitches.find(s => s.x == x && s.y == y) 
+            !selectedStitches.find(s => s.x == x && s.y == y)
         ) {
             selectedStitches.push({ x: x, y: y });
             stitchArray[y][x].stitched = true;
@@ -458,7 +451,7 @@ export default function Project() {
             posY = 0;
         posX = posX;
         posY = posY;
-        
+
     }
 
     const wheel = (e) => {
@@ -483,7 +476,7 @@ export default function Project() {
         else {
             gridCanvas.current.style.visibility = 'visible';
         }
-        
+
         console.log(posX);
         posX = -pos.x + ((canvas.current.width / 2) * ((stitchWrapper.current.clientWidth / canvas.current.width) / newScale));
         posY = -pos.y + ((canvas.current.height / 2) * ((stitchWrapper.current.clientHeight / canvas.current.height) / newScale));
@@ -506,16 +499,16 @@ export default function Project() {
 
     const zoomOut = () => {
         scale = getMinScale();
-        
+
         posX = 0;
         posY = 0;
         transformWrapper.current.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
         //transformWrapper.current.style.width = `${canvasContext.canvas.width * scale}px`;
         //transformWrapper.current.style.height = `${canvasContext.canvas.height * scale}px`;
-        
+
         gridCanvas.current.style.visibility = 'hidden';
         setGuideStyles();
-       // window.requestAnimationFrame(drawZoomRectangle);
+        // window.requestAnimationFrame(drawZoomRectangle);
     }
 
     const zoomIn = (x, y) => {
@@ -553,10 +546,10 @@ export default function Project() {
                         <div key={num} className={'guide-number'}>
                             {num == 0 ? '' : num}
                         </div>
-                        ))
+                    ))
                 }
             </div>
-            );
+        );
     }
 
     const GuideVertical = () => {
@@ -579,52 +572,86 @@ export default function Project() {
             </div>
         );
     }
+    if (projectAlreadyOpen) {
+        return (
+            <div className={'project-open-warning'}>
+                <Icon icon={warningStandardSolid} />
+                You already have a project open in another tab or browser<br />
+                Close that tab and reload the page to open your project
+            </div>
+            )
+    }
 
     return (
-        <div className={'project-editor'} style={{ visibility: `${loaded ? 'visible' : 'hidden'}` }}>
-            <Toolbar
-                settingsRef={settings}
-                setSelectedColorRef={setSelectedColor}
-                setHoverColorRef={setHoverColor}
-                redrawCanvas={redrawCanvas}
-                setPrevCursorModeRef={setPrevCursorMode}
-                setCanvasCursor={setCanvasCursor}
-                zoomOut={zoomOut}
-                colors={colors}
-                setStitchCountsRef={setStitchCounts}
-                updateStitchCountsRef={updateStitchCounts}
-            />
-            <div className={'project-wrapper'}>
-                <GuideHorizontal />
-                <GuideVertical />
-                <div style={{
-                    backgroundColor: 'white',
-                    zIndex: '9'
-                }}></div>
-                <div className={'stitch-wrapper'}
-                    onWheel={e => wheel(e)}
-                    style={{
-                        visibility: `${canvas ? 'visible' : 'hidden'}`
-                    }}
-                    ref={stitchWrapper}
-                >
-                    <div id={'transform-wrapper'} ref={transformWrapper}>
-                        <canvas
-                            id={'stitch-canvas'}
-                            ref={canvas}
-                            onMouseMove={mouseMove}
-                            onMouseDown={mouseDown}
-                            onMouseUp={mouseUp}
-                            onContextMenu={e => e.preventDefault()}
-                        >
-                        </canvas>
-                        <canvas
-                            id={'grid-canvas'}
-                            ref={gridCanvas}
-                        />
+        <>
+            <div
+                className={'loading-screen'}
+                style={{display: `${loaded ? 'none' : 'flex'}`}}
+            >
+                <div className={'title'}>
+                    Loading project
+                </div>
+                <Spinner />
+            </div>
+            <div
+                className={`disconnect-bg ${reconnecting || disconnected ? 'active' : ''}`}
+            >
+                {
+                    reconnecting ?
+                        <div className={'title'}>
+                            Disconnected from server<br/>
+                            Attempting to reconnect<br/>
+                            <Spinner />
+                        </div>
+                        :
+                        <div className={'title'}>
+                            Disconnected from server<br />
+                            Reload the page to reconnect
+                        </div>
+                }
+            </div>
+            <div className={'project-editor'} style={{ visibility: `${loaded ? 'visible' : 'hidden'}` }}>
+                <Toolbar
+                    settingsRef={settings}
+                    setSelectedColorRef={setSelectedColor}
+                    setHoverColorRef={setHoverColor}
+                    redrawCanvas={redrawCanvas}
+                    setPrevCursorModeRef={setPrevCursorMode}
+                    setCanvasCursor={setCanvasCursor}
+                    zoomOut={zoomOut}
+                    colors={colors}
+                    setStitchCountsRef={setStitchCounts}
+                    updateStitchCountsRef={updateStitchCounts}
+                />
+                <div className={'project-wrapper'}>
+                    <GuideHorizontal />
+                    <GuideVertical />
+                    <div style={{
+                        backgroundColor: 'white',
+                        zIndex: '9'
+                    }}></div>
+                    <div className={'stitch-wrapper'}
+                        onWheel={e => wheel(e)}
+                        ref={stitchWrapper}
+                    >
+                        <div id={'transform-wrapper'} ref={transformWrapper}>
+                            <canvas
+                                id={'stitch-canvas'}
+                                ref={canvas}
+                                onMouseMove={mouseMove}
+                                onMouseDown={mouseDown}
+                                onMouseUp={mouseUp}
+                                onContextMenu={e => e.preventDefault()}
+                            >
+                            </canvas>
+                            <canvas
+                                id={'grid-canvas'}
+                                ref={gridCanvas}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }

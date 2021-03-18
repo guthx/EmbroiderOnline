@@ -65,7 +65,7 @@ export default function Toolbar({
     }, [cursorMode]);
     useEffect(() => {
         setCursorMode(prevCursorMode);
-        if (selectedColor)
+        if (selectedColor != null)
             setColorLock(true);
         else
             setColorLock(false);
