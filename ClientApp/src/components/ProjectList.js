@@ -3,21 +3,32 @@ import { useEffect } from 'react';
 import { authService } from '../AuthService';
 import { Link, withRouter } from 'react-router-dom';
 import './ProjectList.css';
+import { Icon, InlineIcon } from '@iconify/react';
+import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
 
 export default function ProjectList() {
     const [projects, setProjects] = useState([]);
+    const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
 
     useEffect(() => {
-        var headers = new Headers();
-        authService.addAuthHeader(headers);
+        authService.currentUser.subscribe(u => {
+            setCurrentUser(u);
+        });
+    }, [])
 
-        fetch('api/project', {
-            headers: headers
-        })
-            .then(res => res.json())
-            .then(projects => setProjects(projects))
-            .catch(ex => console.log(ex));
-    }, []);
+    useEffect(() => {
+        if (currentUser) {
+            var headers = new Headers();
+            authService.addAuthHeader(headers);
+
+            fetch('api/project', {
+                headers: headers
+            })
+                .then(res => res.json())
+                .then(projects => setProjects(projects))
+                .catch(ex => console.log(ex));
+        }   
+    }, [currentUser]);
 
     const b64toBlob = (b64Data, contentType = '', sliceSize = 512) => {
         const byteCharacters = atob(b64Data);
@@ -75,6 +86,14 @@ export default function ProjectList() {
             );
         });
     }
+
+    if (!currentUser)
+        return (
+            <div className={'warning-screen'}>
+                <Icon icon={warningStandardSolid} />
+                You need to be logged in to access your projects
+            </div>
+            );
 
     return (
         <div className={'project-list-wrapper'}>

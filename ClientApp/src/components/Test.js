@@ -8,11 +8,20 @@ import eraserSolid from '@iconify-icons/clarity/eraser-solid';
 import lockSolid from '@iconify-icons/clarity/lock-solid';
 import settingsSolid from '@iconify-icons/clarity/settings-solid';
 import colorPaletteSolid from '@iconify-icons/clarity/color-palette-solid';
-
 import { CompactPicker } from 'react-color';
+import { Tooltip } from '@material-ui/core';
+import { withStyles } from '@material-ui/core/styles';
 
 
-
+const tooltips = {
+    pan: "Pan around the image",
+    zoom: "Zoom in to a specified area",
+    stitch: "Mark stitches as completed",
+    erase: "Mark stitches as uncompleted",
+    colorLock: "Select and lock a color, blocking the rest of colors from being editable",
+    settings: "Change color mode settings",
+    palette: "Check palette of colors used in your project",
+}
 
 export default function Toolbar({
     settingsRef,
@@ -25,6 +34,9 @@ export default function Toolbar({
     colors,
     setStitchCountsRef,
     updateStitchCountsRef,
+    generateTextures,
+    enablePan,
+    clearZoomRectangle
 }) {
     const [cursorMode, setCursorMode] = useState(cursorModes.PAN);
     const [selectedColor, setSelectedColor] = useState(null);
@@ -35,11 +47,11 @@ export default function Toolbar({
     const [colorMode, setColorMode] = useState(colorModes.TRANSPARENT_TO_OPAQUE);
     const [prevCursorMode, setPrevCursorMode] = useState(cursorModes.PAN);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [customColor, setCustomColor] = useState('#fff');
+    const [customColor, setCustomColor] = useState('#ffffff');
     const [stitchCounts, setStitchCounts] = useState([]);
     const [stitchCountMenu, setStitchCountMenu] = useState(false);
     setStitchCountsRef.current = setStitchCounts;
-    const isInitialMount = useRef(true);
+    const isInitialMount = useRef(2);
     useEffect(() => {
         settingsRef.current = {
             cursorMode: cursorMode,
@@ -49,20 +61,30 @@ export default function Toolbar({
             customColor: customColor
         };
     }, [cursorMode, selectedColor, colorMode, colorLock, customColor]);
+    
     useEffect(() => {
-        switch (cursorMode) {
-            case cursorModes.ZOOM:
-                setCanvasCursor('zoom-in');
-                zoomOut();
-                break;
-            case cursorModes.PAN:
-                setCanvasCursor('grab');
-                break;
-            default:
-                setCanvasCursor('auto');
-                break;
-        }
+        if (isInitialMount.current)
+            isInitialMount.current--;
+        else
+            switch (cursorMode) {
+                case cursorModes.ZOOM:
+                    // setCanvasCursor('zoom-in');
+                    enablePan(false);
+                    zoomOut();
+                    break;
+                case cursorModes.PAN:
+                    //   setCanvasCursor('grab');
+                    enablePan(true);
+                    clearZoomRectangle();
+                    break;
+                default:
+                    enablePan(false);
+                    clearZoomRectangle();
+                    //   setCanvasCursor('auto');
+                    break;
+            }
     }, [cursorMode]);
+    
     useEffect(() => {
         setCursorMode(prevCursorMode);
         if (selectedColor != null)
@@ -72,17 +94,13 @@ export default function Toolbar({
     }, [selectedColor]);
     useEffect(() => {
         if (isInitialMount.current)
-            isInitialMount.current = false;
+            isInitialMount.current--;
         else
-            redrawCanvas();
+            generateTextures();
     }, [colorLock, colorMode, customColor]);
 
     function revertCursorMode() {
         setCursorMode(prevCursorMode);
-        if (prevCursorMode == cursorModes.PAN)
-            setCanvasCursor('grab');
-        else
-            setCanvasCursor('auto');
     }
     setPrevCursorModeRef.current = revertCursorMode;
 
@@ -113,11 +131,9 @@ export default function Toolbar({
         }
     }
     function handleStitchMode(e) {
-        setCanvasCursor('auto');
         setCursorMode(cursorModes.STITCH);
     }
     function handleEraseMode(e) {
-        setCanvasCursor('auto');
         setCursorMode(cursorModes.ERASE);
     }
     function handleColorLock(e) {
@@ -158,6 +174,17 @@ export default function Toolbar({
         }
             
     }
+
+    const OptionTooltip = withStyles((theme) => ({
+        tooltip: {
+            backgroundColor: '#2e2e2e',
+            color: 'white',
+            borderRadius: '3px',
+            fontSize: 14
+        }
+    }))(Tooltip);
+
+
     if (colors.length == 0)
         return null;
 
@@ -165,22 +192,27 @@ export default function Toolbar({
         <div className={'toolbar'}>
             <div className={'toolbar-group'}>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.pan} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${cursorMode == cursorModes.PAN ? 'selected' : ''}`}
                         onClick={handlePanMode}
                     >
                         <Icon icon={panIcon} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                 </div>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.zoom} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${cursorMode == cursorModes.ZOOM ? 'selected' : ''}`}
                         onClick={handleZoomMode}
                     >
                         <ZoomInIcon fontSize={'inherit'} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                 </div>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.stitch} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${cursorMode == cursorModes.STITCH ? 'selected' : ''}`}
                         onClick={handleStitchMode} >
@@ -196,14 +228,17 @@ export default function Toolbar({
                                 <path id="svg_7" fill="#3f3f3f" d="m114.77,28.5c-5.15,-5.3 -13.17,-5.3 -13.17,-5.3l-4.69,4.69c7.01,-0.35 11.15,1.28 14.8,4.8c4.21,4.07 5.45,10.42 4.8,14.9c-3.5,24.26 -36.17,28.31 -36.5,28.35c-28.89,3.34 -44.59,-8.49 -53.06,-20.2c0,0 -0.97,6.48 5.24,12.11c8.06,7.3 19.48,13.63 38.39,13.63c3.4,0 7.02,-0.21 10.86,-0.65c13.04,-1.51 36.62,-8.92 39.95,-32.08c0.82,-5.6 -0.62,-14.08 -6.62,-20.25z" />
                             </g>
                         </svg>
-                    </div>
+                        </div>
+                    </OptionTooltip>
                 </div>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.erase} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${cursorMode == cursorModes.ERASE ? 'selected' : ''}`}
                         onClick={handleEraseMode}>
                         <Icon icon={eraserSolid} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                 </div>
             </div>
             <div className={'toolbar-group'}>
@@ -224,22 +259,26 @@ export default function Toolbar({
                     </div>
                 </div>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.colorLock} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${cursorMode == cursorModes.SELECT || colorLock ? 'selected' : ''}`}
                         onClick={handleColorLock}
                     >
                         <Icon icon={lockSolid} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                 </div>
             </div>
             <div className={'toolbar-group'}>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.settings} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${settingsOpen ? 'selected' : ''}`}
                         onClick={handleSettingsOpen}
                     >
                         <Icon icon={settingsSolid} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                     <div className={`settings ${settingsOpen ? '' : 'hidden'}`}>
                         <div className={'title'}>
                             Color mode
@@ -275,12 +314,14 @@ export default function Toolbar({
                     </div>
                 </div>
                 <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.palette} placement="right" className={'tool-tip'}>
                     <div
                         className={`icon ${stitchCountMenu ? 'selected' : ''}`}
                         onClick={handleStitchCountMenu}
                     >
                         <Icon icon={colorPaletteSolid} />
-                    </div>
+                        </div>
+                    </OptionTooltip>
                     <div className={`stitch-count-menu ${stitchCountMenu ? '' : 'hidden'}`}>
                         {
                             stitchCounts.map((stitchCount, i) => {

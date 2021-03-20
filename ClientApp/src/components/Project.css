@@ -126,7 +126,6 @@
 
 .toolbar-item {
     display: flex;
-    font-size: 34px;
     width: 100%;
     height: 100%;
     justify-content: center;
@@ -142,6 +141,7 @@
         border-radius: 6px;
         align-items: center;
         user-select: none;
+        font-size: 34px;
     }
 
     .toolbar-item .icon:hover {
@@ -273,17 +273,17 @@
         flex-direction: column;
     }
 
-.project-open-warning {
-    display: flex;
+
+
+#canvas-wrapper {
+    grid-column: 2;
+    grid-row: 2;
     height: 100%;
     width: 100%;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    flex-direction: column;
-    font-size: 26px;
+    pointer-events: inherit;
+    overflow: hidden;
 }
 
-.project-open-warning svg {
-    font-size: 64px;
+#canvas-wrapper canvas {
+    pointer-events: inherit;
 }

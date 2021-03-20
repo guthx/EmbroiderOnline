@@ -625,3 +625,18 @@ input:checked + .slider:before {
 .create-project-dialog .warning {
     margin: 0;
 }
+
+.warning-screen {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+    font-size: 26px;
+}
+
+    .warning-screen svg {
+        font-size: 64px;
+    }

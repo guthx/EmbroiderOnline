@@ -18,7 +18,6 @@ export default function CreateProject({ guid }) {
     useEffect(() => {
         authService.currentUser.subscribe(u => {
             setCurrentUser(u);
-            console.log(u);
         });
     }, [])
 

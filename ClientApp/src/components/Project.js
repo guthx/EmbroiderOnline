@@ -10,7 +10,10 @@ import { Color } from 'p5';
 import Spinner from './Spinner';
 import { Icon, InlineIcon } from '@iconify/react';
 import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
-
+import * as PIXI from 'pixi.js';
+import { Viewport } from 'pixi-viewport';
+import * as Cull from 'pixi-cull';
+import { BitmapFont, Geometry, GraphicsGeometry } from 'pixi.js';
 
 export const cursorModes = {
     SELECT: 0,
@@ -33,9 +36,8 @@ export default function Project() {
         selectedColor: null,
         colorLock: false,
         colorMode: colorModes.OPAQUE_TO_COLOR,
-        customColor: 'fff',
+        customColor: 'ffffff',
     });
-
     const { id } = useParams();
     const [stitches, setStitches] = useState([]);
     const [hubConnection, setHubConnection] = useState(null);
@@ -44,26 +46,32 @@ export default function Project() {
     const [disconnected, setDisconnected] = useState(false);
     const [loaded, setLoaded] = useState(false);
     const [projectAlreadyOpen, setProjectAlreadyOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
+
+    useEffect(() => {
+        authService.currentUser.subscribe(u => {
+            setCurrentUser(u);
+        });
+    }, [])
+
+    const spritesRef = useRef();
+    const stitchedTextures = useRef();
+    const unstitchedTextures = useRef();
+    const zoomRectangle = useRef();
+    const app = useRef();
+    const viewport = useRef();
 
     const setSelectedColor = useRef();
     const setHoverColor = useRef();
     const setPrevCursorMode = useRef();
     const setStitchCounts = useRef();
     const updateStitchCounts = useRef();
+    const linesX = useRef();
+    const linesY = useRef();
 
-    const canvas = useRef();
-    const gridCanvas = useRef();
-    const stitchWrapper = useRef();
-    const transformWrapper = useRef();
     const guideHorizontal = useRef();
     const guideVertical = useRef();
 
-    let canvasContext;
-    let gridCanvasContext;
-    if (canvas.current)
-        canvasContext = canvas.current.getContext('2d');
-    if (gridCanvas.current)
-        gridCanvasContext = gridCanvas.current.getContext('2d');
     let stitchArray = stitches;
     let mousePressed = -1;
     let selectedStitches = [];
@@ -72,62 +80,78 @@ export default function Project() {
     let posY = 0;
 
     useEffect(() => {
-        var hub = new signalR.HubConnectionBuilder()
-            .withUrl('/hubs/project', {
-                accessTokenFactory: () => {
-                    return authService.currentUserValue().jwt;
-                },
-                skipNegotiation: false
-            })
-            .configureLogging(signalR.LogLevel.Information)
-            .withAutomaticReconnect()
-            .build();
-        hub.on('projectReceived', project => {
-            if (project) {
-                setStitches(project.stitchMap.stitches);
-                setColors(project.stitchMap.dmcFlosses);
-            }
-        });
-        hub.on('projectAlreadyOpen', () => {
-            setProjectAlreadyOpen(true);
-        });
-        hub.onreconnecting(() => {
-            setReconnecting(true);
-        });
-        hub.onreconnected(() => {
-            hub.invoke('GetProject', id);
-        });
-        hub.onclose(() => {
-            if (canvasContext) {
-                setReconnecting(false);
-                setDisconnected(true);
-            }
-        });
-        hub.start()
-            .then(() => {
-                setHubConnection(hub);
+        if (currentUser) {
+            var hub = new signalR.HubConnectionBuilder()
+                .withUrl('/hubs/project', {
+                    accessTokenFactory: () => {
+                        return authService.currentUserValue().jwt;
+                    },
+                    skipNegotiation: false
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .withAutomaticReconnect()
+                .build();
+            hub.on('projectReceived', project => {
+                if (project) {
+                    setStitches(project.stitchMap.stitches);
+                    setColors(project.stitchMap.dmcFlosses);
+                }
             });
+            hub.on('projectAlreadyOpen', () => {
+                setProjectAlreadyOpen(true);
+            });
+            hub.onreconnecting(() => {
+                setReconnecting(true);
+            });
+            hub.onreconnected(() => {
+                hub.invoke('GetProject', id);
+            });
+            /*
+            hub.onclose(() => {
+                    setReconnecting(false);
+                    setDisconnected(true);
+            });
+            */
+            hub.start()
+                .then(() => {
+                    setHubConnection(hub);
+                });
+
+            window.addEventListener('resize', (e) => {
+                let wrapper = document.getElementById('canvas-wrapper');
+                app.current.renderer.resize(wrapper.clientWidth, wrapper.clientHeight);
+                app.current.view.width = wrapper.clientWidth;
+                app.current.view.height = wrapper.clientHeight;
+                viewport.current.resize(wrapper.clientWidth, wrapper.clientHeight);
+                let scale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
+                viewport.current.clampZoom({
+                    minScale: scale,
+                    maxScale: 1
+                });
+            })
 
 
-
-        return () => {
-            canvasContext = null;
-            gridCanvasContext = null;
-            stitchArray = null;
-            mousePressed = null;
-            selectedStitches = null;
-            scale = null;
-            posX = null;
-            posY = null;
-            hub.stop();
+            return () => {
+                mousePressed = null;
+                selectedStitches = null;
+                scale = null;
+                posX = null;
+                posY = null;
+                hub.stop();
+            }
         }
+        else
+            setLoaded(true);
+        
 
     }, []);
 
     useEffect(() => {
-        if (projectAlreadyOpen)
+        if (projectAlreadyOpen || !currentUser && hubConnection)
             hubConnection.stop();
-    }, [projectAlreadyOpen])
+        else if (currentUser && loaded)
+            window.location.reload();
+    }, [projectAlreadyOpen, currentUser])
 
     useEffect(() => {
         if (hubConnection) {
@@ -137,7 +161,104 @@ export default function Project() {
 
     useEffect(() => {
         if (stitches.length > 0 && colors.length > 0) {
-            loadCanvas();
+            let wrapper = document.getElementById('canvas-wrapper');
+            app.current = new PIXI.Application({
+                width: wrapper.clientWidth,
+                height: wrapper.clientHeight,
+                view: document.getElementById('canvas')
+            });
+            viewport.current = new Viewport({
+                worldWidth: stitches[0].length * STITCH_SIZE,
+                worldHeight: stitches.length * STITCH_SIZE,
+                screenWidth: wrapper.clientWidth,
+                screenHeight: wrapper.clientHeight,
+                disableOnContextMenu: true,
+                interaction: app.current.renderer.plugins.interaction,
+            });
+            app.current.stage.addChild(viewport.current);
+            app.current.stage.backgroundColor = 0xffffff;
+            app.current.render();
+            viewport.current.backgroundColor = 0xffffff;
+            app.current.renderer.plugins.interaction.moveWhenInside = true;
+            //viewport.current.drag().wheel();
+            let background = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
+            background.width = stitches[0].length * STITCH_SIZE;
+            background.height = stitches.length * STITCH_SIZE;
+
+            generateTextures();
+            spritesRef.current = new Array(stitches.length);
+            let i = 0;
+            for (let y = 0; y < stitches.length; y++) {
+
+                spritesRef.current[y] = new Array(stitches[0].length)
+                for (let x = 0; x < stitches[0].length; x++) {
+                    if (stitches[y][x].stitched)
+                        spritesRef.current[y][x] = viewport.current.addChild(new PIXI.Sprite(stitchedTextures.current[stitches[y][x].colorIndex]));
+                    else
+                        spritesRef.current[y][x] = viewport.current.addChild(new PIXI.Sprite(unstitchedTextures.current[stitches[y][x].colorIndex]));
+                    spritesRef.current[y][x].width = spritesRef.current[y][x].height = STITCH_SIZE + 2;
+                    spritesRef.current[y][x].position.set(x * STITCH_SIZE, y * STITCH_SIZE);
+                    i++;
+                }
+            }
+            linesY.current = [];
+            linesX.current = [];
+            i = 0;
+            for (let y = 10; y < stitches.length; y += 10) {
+                linesY.current [i] = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
+                linesY.current [i].tint = 0x000000;
+                linesY.current [i].width = stitches[0].length * STITCH_SIZE;
+                linesY.current [i].height = 5;
+                linesY.current[i].position.set(0, y * STITCH_SIZE - 2);
+                i++;
+            }
+            i = 0;
+            for (let x = 10; x < stitches[0].length; x += 10) {
+                linesX.current [i] = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
+                linesX.current [i].tint = 0x000000;
+                linesX.current [i].height = stitches.length * STITCH_SIZE;
+                linesX.current [i].width = 5;
+                linesX.current[i].position.set(x * STITCH_SIZE - 2, 0);
+                i++;
+            }
+            let scale = viewport.current.findFit(stitches[0].length * STITCH_SIZE, stitches.length * STITCH_SIZE);
+            viewport.current.clampZoom({
+                minScale: scale,
+                maxScale: 1
+            });
+            zoomRectangle.current = viewport.current.addChild(new PIXI.Graphics());
+            zoomRectangle.current.lineStyle(10, 0x000000);
+            zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
+            zoomRectangle.current.renderable = false;
+            
+            var cull = new Cull.Simple();
+            cull.addList(viewport.current.children);
+            cull.cull(viewport.current.getVisibleBounds());
+
+            PIXI.Ticker.shared.add(() => {
+                if (viewport.current.dirty) {
+                    cull.cull(viewport.current.getVisibleBounds());
+                    viewport.current.dirty = false;
+                }
+            });
+            
+            console.log(spritesRef.current);
+            viewport.current.drag({
+                mouseButtons: 'right-left',
+            });
+            viewport.current.clamp({
+                top: true,
+                bottom: true,
+                left: true,
+                right: true
+            });
+            viewport.current.wheel();
+
+            
+            
+            //app.current.stage.interactive = true;
+            //app.current.stage.on('mousemove', mouseMove);
+
             let initialStitchCounts = [];
             for (let i = 0; i < colors.length; i++) {
                 initialStitchCounts.push({ total: 0, stitched: 0 });
@@ -148,245 +269,367 @@ export default function Project() {
                     if (stitches[i][j].stitched)
                         initialStitchCounts[stitches[i][j].colorIndex].stitched += 1;
                 }
-            setStitchCounts.current(initialStitchCounts);
-
             setGuideStyles();
-
-            redrawCanvas();
+            setStitchCounts.current(initialStitchCounts);
             setLoaded(true);
             setReconnecting(false);
-        }
-    }, [colors])
+
+            return () => {
+                if (stitchedTextures.current) {
+                    for (let i = 0; i < stitchedTextures.current.length; i++) {
+                        stitchedTextures.current[i].destroy(true);
+                        stitchedTextures.current[i] = null;
+                    }
+                    for (let y = 0; y < spritesRef.current.length; y++)
+                        for (let x = 0; x < spritesRef.current[0].length; x++) {
+                            spritesRef.current[y][x].destroy(true);
+                            spritesRef.current[y][x] = null;
+                        }
+                    for (let i = 0; i < linesX.current .length; i++) {
+                        linesX.current [i].destroy(true);
+                        linesX.current [i] = null;
+                    }
+                    for (let i = 0; i < linesY.current .length; i++) {
+                        linesY.current [i].destroy(true);
+                        linesY.current [i] = null;
+                    }
+                    console.log(app.current.renderer.texture);
+                    for (let key in PIXI.utils.TextureCache) {
+                        PIXI.utils.TextureCache[key].destroy(true);
+                    }
+                    background.destroy(true);
+                    background = null;
+                    viewport.current.destroy();
+                    app.current.renderer.gl.getExtension('WEBGL_lose_context').loseContext();
+                    app.current.destroy();
 
 
-    function loadCanvas() {
-        canvasContext.canvas.width = stitches[0].length * STITCH_SIZE;
-        canvasContext.canvas.height = stitches.length * STITCH_SIZE;
-        canvasContext.font = "bold 20px Roboto";
-        canvasContext.textAlign = 'center';
-        canvasContext.textBaseline = 'middle';
-        canvasContext.imageSmoothingEnabled = false;
-        gridCanvasContext.canvas.width = stitches[0].length * STITCH_SIZE;
-        gridCanvasContext.canvas.height = stitches.length * STITCH_SIZE;
-        gridCanvasContext.imageSmoothingEnabled = false;
-        gridCanvasContext.strokeStyle = 'black';
-        //transformWrapper.current.style.width = `${canvasContext.canvas.width * scale}px`;
-        //transformWrapper.current.style.height = `${canvasContext.canvas.height * scale}px`;
-        setCanvasCursor('grab');
-        setStitches(stitches);
-        setColors(colors);
-    }
 
-
-    const setGuideStyles = () => {
-        document.documentElement.style.setProperty('--number-size', `${STITCH_SIZE * 10 * scale}px`);
-        guideHorizontal.current.style.left = `-${STITCH_SIZE * 5 * scale}px`;
-        guideHorizontal.current.style.transform = `translate(${posX * scale}px, 0)`;
-        guideVertical.current.style.top = `-${STITCH_SIZE * 5 * scale}px`;
-        guideVertical.current.style.transform = `translate(0, ${posY * scale}px)`;
-    }
-
-    const getMousePos = (e) => {
-        var rect = canvas.current.getBoundingClientRect();
-        return {
-            x: ((e.clientX - rect.left) / (rect.right - rect.left) * canvas.current.width),
-            y: ((e.clientY - rect.top) / (rect.bottom - rect.top) * canvas.current.height)
-        }
-    }
-
-    const redrawCanvas = () => {
-        canvasContext.clearRect(0, 0, canvas.current.width, canvas.current.height);
-        gridCanvasContext.clearRect(0, 0, canvas.current.width, canvas.current.height);
-        var x, y;
-        for (y = 0; y < stitchArray.length; y++)
-            for (x = 0; x < stitchArray[0].length; x++) {
-                drawStitch(x, y, false);
-                drawGrid(x, y);
-            }
-        if (scale < 0.25)
-            gridCanvas.current.style.visibility = 'hidden';
-        drawGuideGrid();
-
-    }
-
-    const getMinScale = () => {
-        var scaleX = stitchWrapper.current.clientWidth / canvas.current.width;
-        var scaleY = stitchWrapper.current.clientHeight / canvas.current.height;
-        if (scaleX < scaleY)
-            return scaleX;
-        else
-            return scaleY;
-    }
-
-    const drawGuideGrid = () => {
-        gridCanvasContext.lineWidth = 4;
-        for (let y = 10 * STITCH_SIZE; y < stitchArray.length * STITCH_SIZE; y += 10 * STITCH_SIZE) {
-            gridCanvasContext.beginPath();
-            gridCanvasContext.moveTo(0, y);
-            gridCanvasContext.lineTo(canvas.current.width, y);
-            gridCanvasContext.closePath();
-            gridCanvasContext.stroke();
-        }
-        for (let x = 10 * STITCH_SIZE; x < stitchArray[0].length * STITCH_SIZE; x += 10 * STITCH_SIZE) {
-            gridCanvasContext.beginPath();
-            gridCanvasContext.moveTo(x, 0);
-            gridCanvasContext.lineTo(x, canvas.current.height);
-            gridCanvasContext.closePath();
-            gridCanvasContext.stroke();
-        }
-    }
-
-    const drawGrid = (x, y) => {
-        gridCanvasContext.strokeStyle = 'black';
-        gridCanvasContext.beginPath();
-        if (settings.current.colorLock) {
-            if (settings.current.selectedColor == stitchArray[y][x].colorIndex) {
-                gridCanvasContext.lineWidth = 4;
-                gridCanvasContext.strokeRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-            }
-            else {
-                gridCanvasContext.strokeStyle = 'rgba(0, 0, 0, 0.2';
-                gridCanvasContext.lineWidth = 2;
-                gridCanvasContext.strokeRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
+                }
             }
         }
-        else {
-            gridCanvasContext.lineWidth = 2;
-            gridCanvasContext.strokeRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
+
+
+    }, [colors]);
+
+    useEffect(() => {
+        if (loaded && currentUser) {
+            viewport.current.setZoom(1);
+            viewport.current.on('mousedown', (e) => mouseDown(e));
+            viewport.current.on('mouseup', e => mouseUp(e));
+            viewport.current.on('moved', e => {
+                if (e.type == 'drag') {
+                    guideHorizontal.current.style.transform = `translate(${e.viewport.lastViewport.x}px, 0)`;
+                    guideVertical.current.style.transform = `translate(0, ${e.viewport.lastViewport.y}px)`;
+                }
+            });
+            viewport.current.on('zoomed-end', e => {
+                scale = e.lastViewport.scaleX;
+                document.documentElement.style.setProperty('--number-size', `${STITCH_SIZE * 10 * e.lastViewport.scaleX}px`);
+                guideHorizontal.current.style.transform = `translate(${e.lastViewport.x}px, 0)`;
+                guideVertical.current.style.transform = `translate(0, ${e.lastViewport.y}px)`;
+                guideHorizontal.current.style.left = `-${STITCH_SIZE * 5 * e.lastViewport.scaleX}px`;
+                guideVertical.current.style.top = `-${STITCH_SIZE * 5 * e.lastViewport.scaleX}px`;
+            });
+            viewport.current.on('mousemove', mouseMove);
+            viewport.current.interactive = true;
+            setGuideStyles();
         }
-        gridCanvasContext.closePath();
+            
+    }, [loaded]);
+
+    function enablePan(enable) {
+        if (enable)
+            viewport.current.drag({
+                mouseButtons: 'right-left',
+            });
+        else 
+            viewport.current.drag({
+                mouseButtons: 'right',
+            });
     }
 
-    const drawStitch = (x, y, clear = true) => {
-        if (clear)
-            canvasContext.clearRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-        canvasContext.beginPath();
+    function generateTextures() {
+        if (!stitchedTextures.current) {
+            stitchedTextures.current = new Array(colors.length);
+            unstitchedTextures.current = new Array(colors.length);
+            console.log(colors);
+            for (let i = 0; i < colors.length; i++) {
+                stitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
+                unstitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
+            }
+        }
         if (settings.current.colorMode == colorModes.TRANSPARENT_TO_OPAQUE) {
-            var alpha;
-            if (stitchArray[y][x].stitched == false) {
-                alpha = 0.4;
-                canvasContext.font = '20px Roboto';
-            }
-            else {
-                alpha = 1;
-                canvasContext.font = 'bold 20px Roboto';
-            }
-
-            var color = colors[stitchArray[y][x].colorIndex];
             if (settings.current.colorLock) {
-                if (settings.current.selectedColor == stitchArray[y][x].colorIndex) {
+                for (let i = 0; i < colors.length; i++) {
+                    if (settings.current.selectedColor == i) {
+                        let color = colors[i];
+                        let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                        const rect = new PIXI.Graphics();
 
-                    canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, ${alpha})`;
-                    canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-                    canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-                    canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
+                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.beginFill(colorHex);
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        const text = new PIXI.Text(i.toString(), {
+                            fontFamily: 'Arial',
+                            fontSize: 20,
+                            fill: 0x000000,
+                        });
+                        text.anchor.set(0.5);
+                        text.x = STITCH_SIZE / 2 + 1;
+                        text.y = STITCH_SIZE / 2 + 1;
+                        rect.addChild(text);
+                        text.updateText();
+                        app.current.renderer.render(rect, stitchedTextures.current[i]);
 
-                }
-                else {
-                    canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, 0.2)`;
-                    canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
+                        rect.clear();
+                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.beginFill(colorHex, 0.4);
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        text.alpha = 0.4;
+                        text.updateText();
+                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                        rect.destroy(true);
+                    }
+                    else {
+                        let color = colors[i];
+                        let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                        const rect = new PIXI.Graphics();
+
+                        rect.lineStyle({ width: 2, color: 0x000000, alpha: 0.2, alignment: 1 });
+                        rect.beginFill(colorHex, 0.2);
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        app.current.renderer.render(rect, stitchedTextures.current[i]);
+                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+                       
+                        rect.destroy(true);
+                    }
+                    
                 }
             }
             else {
-                canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, ${alpha})`;
-                canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-                canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-                canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
+                for (let i = 0; i < colors.length; i++) {
+                    let color = colors[i];
+                    let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                    const rect = new PIXI.Graphics();
+
+                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.beginFill(colorHex);
+                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.endFill();
+                    const text = new PIXI.Text(i.toString(), {
+                        fontFamily: 'Arial',
+                        fontSize: 20,
+                        fill: 0x000000,
+                    });
+                    text.anchor.set(0.5);
+                    text.x = STITCH_SIZE / 2 + 1;
+                    text.y = STITCH_SIZE / 2 + 1;
+                    rect.addChild(text);
+                    text.updateText();
+                    app.current.renderer.render(rect, stitchedTextures.current[i]);
+
+                    rect.clear();
+                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.beginFill(colorHex, 0.4);
+                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.endFill();
+                    text.alpha = 0.4;
+                    text.updateText();
+                    app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                    rect.destroy(true);
+                }
             }
         }
-        else {
-            var color = colors[stitchArray[y][x].colorIndex];
-            var colorStyle;
-            var alpha;
-            if (stitchArray[y][x].stitched == false) {
-                colorStyle = `rgb(${color.red}, ${color.green}, ${color.blue})`;
-                alpha = 0.4;
-                canvasContext.font = '20px Roboto';
-            }
-            else {
-                colorStyle = settings.current.customColor;
-                alpha = 1;
-                canvasContext.font = 'bold 20px Roboto';
-            }
+        else if (settings.current.colorMode == colorModes.OPAQUE_TO_COLOR) {
             if (settings.current.colorLock) {
-                if (settings.current.selectedColor == stitchArray[y][x].colorIndex) {
-                    canvasContext.fillStyle = colorStyle;
-                    canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-                    canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-                    canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
-                }
-                else {
-                    canvasContext.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, 0.2)`;
-                    canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
+                for (let i = 0; i < colors.length; i++) {
+                    if (settings.current.selectedColor == i) {
+                        let color = colors[i];
+                        let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                        const rect = new PIXI.Graphics();
+
+                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.beginFill(parseInt(`0x${settings.current.customColor.slice(1, 7)}`, 16));
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        const text = new PIXI.Text(i.toString(), {
+                            fontFamily: 'Arial',
+                            fontSize: 20,
+                            fill: 0x000000,
+                        });
+                        text.anchor.set(0.5);
+                        text.x = STITCH_SIZE / 2 + 1;
+                        text.y = STITCH_SIZE / 2 + 1;
+                        rect.addChild(text);
+                        text.updateText();
+                        app.current.renderer.render(rect, stitchedTextures.current[i]);
+
+                        rect.clear();
+                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.beginFill(colorHex);
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        text.alpha = 0.4;
+                        text.updateText();
+                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                        rect.destroy(true);
+                    }
+                    else {
+                        let color = colors[i];
+                        let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                        const rect = new PIXI.Graphics();
+
+                        rect.lineStyle({ width: 2, color: 0x000000, alpha: 0.2, alignment: 1 });
+                        rect.beginFill(colorHex, 0.2);
+                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.endFill();
+                        app.current.renderer.render(rect, stitchedTextures.current[i]);
+                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                        rect.destroy(true);
+                    }
+                    
                 }
             }
             else {
-                canvasContext.fillStyle = colorStyle;
-                canvasContext.fillRect(x * STITCH_SIZE, y * STITCH_SIZE, STITCH_SIZE, STITCH_SIZE);
-                canvasContext.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-                canvasContext.fillText(stitchArray[y][x].colorIndex, x * STITCH_SIZE + STITCH_SIZE / 2, y * STITCH_SIZE + STITCH_SIZE / 2);
+                for (let i = 0; i < colors.length; i++) {
+                    let color = colors[i];
+                    let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
+                    const rect = new PIXI.Graphics();
+
+                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.beginFill(parseInt(`0x${settings.current.customColor.slice(1, 7)}`, 16));
+                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.endFill();
+                    const text = new PIXI.Text(i.toString(), {
+                        fontFamily: 'Arial',
+                        fontSize: 20,
+                        fill: 0x000000,
+                    });
+                    text.anchor.set(0.5);
+                    text.x = STITCH_SIZE / 2 + 1;
+                    text.y = STITCH_SIZE / 2 + 1;
+                    rect.addChild(text);
+                    text.updateText();
+                    app.current.renderer.render(rect, stitchedTextures.current[i]);
+
+                    rect.clear();
+                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.beginFill(colorHex);
+                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.endFill();
+                    text.alpha = 0.4;
+                    text.updateText();
+                    app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                    rect.destroy(true);
+                }
             }
-
         }
-        // canvasContext.closePath();
-
     }
 
-    const mouseMove = (e) => {
-        var pos = getMousePos(e);
-        var x = parseInt(pos.x / STITCH_SIZE);
-        var y = parseInt(pos.y / STITCH_SIZE);
+    function mouseDown(e) {
+        posX = -viewport.current.hitArea.x;
+        posY = -viewport.current.hitArea.y;
+        var pos = {
+            x: viewport.current.input.last.x / scale - posX,
+            y: viewport.current.input.last.y / scale - posY,
+        };
+        mousePressed = e.data.button;
         if (mousePressed == 0) {
-            switch (settings.current.cursorMode) {
-                case cursorModes.STITCH:
-                    completeStitch(x, y);
-                    break;
-                case cursorModes.ERASE:
-                    eraseStitch(x, y);
-                    break;
-                case cursorModes.PAN:
-                    pan(e);
-                    break;
-            }
-        }
-        else if (mousePressed == 2) {
-            pan(e);
-        }
-        setHoverColor.current(stitchArray[y][x].colorIndex);
-    }
-
-    const pan = (e) => {
-        posX += e.movementX / scale;
-        posY += e.movementY / scale;
-        keepInBounds();
-        transformWrapper.current.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
-        guideHorizontal.current.style.transform = `translate(${posX * scale}px, 0)`;
-        guideVertical.current.style.transform = `translate(0, ${posY * scale}px)`;
-    }
-
-    const mouseDown = (e) => {
-        mousePressed = e.button;
-        if (mousePressed == 0) {
-            var pos = getMousePos(e);
             var x = parseInt(pos.x / STITCH_SIZE);
             var y = parseInt(pos.y / STITCH_SIZE);
-            switch (settings.current.cursorMode) {
-                case cursorModes.STITCH:
-                    completeStitch(x, y);
-                    break;
-                case cursorModes.ERASE:
-                    eraseStitch(x, y);
-                    break;
-                case cursorModes.SELECT:
-                    setSelectedColor.current(stitchArray[y][x].colorIndex);
-                    break;
-                case cursorModes.ZOOM:
-                    zoomIn(pos.x - (canvas.current.width * scale) / 2, pos.y - (canvas.current.height * scale) / 2);
-                    break;
-            }
+            if (x < stitches[0].length && y < stitches.length && x > 0 && y > 0)
+                switch (settings.current.cursorMode) {
+                    case cursorModes.STITCH:
+                        completeStitch(x, y);
+                        break;
+                    case cursorModes.ERASE:
+                        eraseStitch(x, y);
+                        break;
+                    case cursorModes.SELECT:
+                        setSelectedColor.current(stitchArray[y][x].colorIndex);
+                        break;
+                    case cursorModes.ZOOM:
+                        zoomIn(pos);
+                        break;
+                }
+
         }
+        
     }
 
+    function setCanvasCursor(e) {
+
+    };
+
+    const mouseMove = (e) => {
+        posX = -viewport.current.hitArea.x;
+        posY = -viewport.current.hitArea.y;
+        var pos = {
+            x: e.data.global.x / scale - posX,
+            y: e.data.global.y / scale - posY
+        }
+        var x = parseInt(pos.x / STITCH_SIZE);
+        var y = parseInt(pos.y / STITCH_SIZE);
+        if (x < stitches[0].length && y < stitches.length && x > 0 && y > 0) {
+            if (mousePressed == 0) {
+
+                switch (settings.current.cursorMode) {
+                    case cursorModes.STITCH:
+                        completeStitch(x, y);
+                        break;
+                    case cursorModes.ERASE:
+                        eraseStitch(x, y);
+                        break;
+                    case cursorModes.PAN:
+                        break;
+                }
+
+
+            }
+            setHoverColor.current(stitchArray[y][x].colorIndex);
+        }
+        if (mousePressed == -1 && settings.current.cursorMode == cursorModes.ZOOM) {
+            let bounds = zoomRectangle.current.AABB;
+            let rectX = pos.x - bounds.width / 2;
+            if (rectX < 0)
+                rectX = 0;
+            else if (rectX > viewport.current.worldWidth - bounds.width)
+                rectX = viewport.current.worldWidth - bounds.width;
+            let rectY = pos.y - bounds.height / 2;
+            if (rectY < 0)
+                rectY = 0;
+            else if (rectY > viewport.current.worldHeight - bounds.height)
+                rectY = viewport.current.worldHeight - bounds.height;
+            zoomRectangle.current.position.set(rectX, rectY);
+        }
+        
+        
+    }
+
+    const setGuideStyles = () => {
+        document.documentElement.style.setProperty('--number-size', `${STITCH_SIZE * 10}px`);
+        guideHorizontal.current.style.left = `-${STITCH_SIZE * 5}px`;
+        guideVertical.current.style.top = `-${STITCH_SIZE * 5}px`;
+    }
+    
+    const drawStitch = (x, y) => {
+        console.log({ x, y });
+        let color = stitchArray[y][x].colorIndex;
+        if (stitchArray[y][x].stitched)
+            spritesRef.current[y][x].texture = stitchedTextures.current[color];
+        else
+            spritesRef.current[y][x].texture = unstitchedTextures.current[color];
+    }
+    
     const mouseUp = (e) => {
         mousePressed = -1;
         if (selectedStitches.length > 0) {
@@ -419,9 +662,7 @@ export default function Project() {
         ) {
             selectedStitches.push({ x: x, y: y });
             stitchArray[y][x].stitched = true;
-            window.requestAnimationFrame(() => {
-                drawStitch(x, y);
-            })
+            drawStitch(x, y);
         }
     }
 
@@ -432,105 +673,37 @@ export default function Project() {
         ) {
             selectedStitches.push({ x: x, y: y });
             stitchArray[y][x].stitched = false;
-            window.requestAnimationFrame(() => {
-                drawStitch(x, y);
-            })
+            drawStitch(x, y);
         }
-    }
-
-    const keepInBounds = () => {
-        var minX = stitchWrapper.current.clientWidth / scale - canvas.current.width;
-        var minY = stitchWrapper.current.clientHeight / scale - canvas.current.height;
-        if (posX < minX)
-            posX = minX;
-        if (posX > 0)
-            posX = 0;
-        if (posY < minY)
-            posY = minY;
-        if (posY > 0)
-            posY = 0;
-        posX = posX;
-        posY = posY;
-
-    }
-
-    const wheel = (e) => {
-        var pos = getMousePos(e);
-        var minScale = getMinScale();
-        var newScale;
-        var delta = e.deltaY > 0 ? 0.25 : -0.25;
-        if (delta < 0 && scale < 0.25)
-            newScale = 0.25;
-        else
-            newScale = scale - delta;
-        if (newScale > 1.0)
-            newScale = 1.0
-        else if (newScale < minScale)
-            newScale = minScale;
-        if (newScale == scale)
-            return;
-        // remove grid if scale < 0.25 to get rid of artifacts
-        if (newScale < 0.25) {
-            gridCanvas.current.style.visibility = 'hidden';
-        }
-        else {
-            gridCanvas.current.style.visibility = 'visible';
-        }
-
-        console.log(posX);
-        posX = -pos.x + ((canvas.current.width / 2) * ((stitchWrapper.current.clientWidth / canvas.current.width) / newScale));
-        posY = -pos.y + ((canvas.current.height / 2) * ((stitchWrapper.current.clientHeight / canvas.current.height) / newScale));
-        scale = newScale;
-
-        keepPixelMult();
-        keepInBounds();
-        transformWrapper.current.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
-        //transformWrapper.current.style.width = `${canvas.current.width * scale}px`;
-        //transformWrapper.current.style.height = `${canvas.current.height * scale}px`;
-        setGuideStyles();
-    }
-
-    const keepPixelMult = () => {
-        posX = Math.round(posX);
-        posY = Math.round(posY);
-        posX -= posX % 4;
-        posY -= posY % 4;
     }
 
     const zoomOut = () => {
-        scale = getMinScale();
-
-        posX = 0;
-        posY = 0;
-        transformWrapper.current.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
-        //transformWrapper.current.style.width = `${canvasContext.canvas.width * scale}px`;
-        //transformWrapper.current.style.height = `${canvasContext.canvas.height * scale}px`;
-
-        gridCanvas.current.style.visibility = 'hidden';
+        scale = viewport.current.findFit(stitches[0].length * STITCH_SIZE, stitches.length * STITCH_SIZE);
+        viewport.current.setZoom(scale, true);
         setGuideStyles();
-        // window.requestAnimationFrame(drawZoomRectangle);
+
+        zoomRectangle.current.clear();
+        zoomRectangle.current.lineStyle(20, 0x8a2be2);
+        zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
+        zoomRectangle.current.renderable = true;
+        console.log(zoomRectangle.current);
+        console.log(viewport.current);
     }
 
-    const zoomIn = (x, y) => {
-        console.log({ x, y });
+
+    const zoomIn = (pos) => {
         scale = 1;
         setPrevCursorMode.current();
-        posX = -x;
-        posY = -y;
-        keepPixelMult();
-        keepInBounds();
-        transformWrapper.current.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
-        //transformWrapper.current.style.width = `${canvasContext.canvas.width * scale}px`;
-        //transformWrapper.current.style.height = `${canvasContext.canvas.height * scale}px`;
-        gridCanvas.current.style.visibility = 'visible';
+        viewport.current.setZoom(scale, true);
+        viewport.current.moveCenter(pos.x, pos.y);
         setGuideStyles();
     }
 
-    const setCanvasCursor = (cursorType) => {
-        if (canvas)
-            canvas.current.style.cursor = cursorType;
+    function clearZoomRectangle() {
+        zoomRectangle.current.renderable = false;
     }
 
+    
     const GuideHorizontal = () => {
         if (stitches.length == 0)
             return null;
@@ -574,12 +747,19 @@ export default function Project() {
     }
     if (projectAlreadyOpen) {
         return (
-            <div className={'project-open-warning'}>
+            <div className={'warning-screen'}>
                 <Icon icon={warningStandardSolid} />
                 You already have a project open in another tab or browser<br />
                 Close that tab and reload the page to open your project
             </div>
-            )
+        )
+    } else if (!currentUser) {
+        return (
+            <div className={'warning-screen'}>
+                <Icon icon={warningStandardSolid} />
+                You need to be logged in to access your projects
+            </div>
+        );
     }
 
     return (
@@ -615,40 +795,27 @@ export default function Project() {
                     settingsRef={settings}
                     setSelectedColorRef={setSelectedColor}
                     setHoverColorRef={setHoverColor}
-                    redrawCanvas={redrawCanvas}
                     setPrevCursorModeRef={setPrevCursorMode}
-                    setCanvasCursor={setCanvasCursor}
-                    zoomOut={zoomOut}
                     colors={colors}
                     setStitchCountsRef={setStitchCounts}
                     updateStitchCountsRef={updateStitchCounts}
+                    setCanvasCursor={setCanvasCursor}
+                    generateTextures={generateTextures}
+                    zoomOut={zoomOut}
+                    enablePan={enablePan}
+                    clearZoomRectangle={clearZoomRectangle}
                 />
-                <div className={'project-wrapper'}>
+                <div className={'project-wrapper'}
+                    style={{ pointerEvents: `${loaded ? 'all' : 'none'}` }}
+                >
                     <GuideHorizontal />
                     <GuideVertical />
                     <div style={{
                         backgroundColor: 'white',
                         zIndex: '9'
                     }}></div>
-                    <div className={'stitch-wrapper'}
-                        onWheel={e => wheel(e)}
-                        ref={stitchWrapper}
-                    >
-                        <div id={'transform-wrapper'} ref={transformWrapper}>
-                            <canvas
-                                id={'stitch-canvas'}
-                                ref={canvas}
-                                onMouseMove={mouseMove}
-                                onMouseDown={mouseDown}
-                                onMouseUp={mouseUp}
-                                onContextMenu={e => e.preventDefault()}
-                            >
-                            </canvas>
-                            <canvas
-                                id={'grid-canvas'}
-                                ref={gridCanvas}
-                            />
-                        </div>
+                    <div id={'canvas-wrapper'}>
+                        <canvas width='1000' height='800' id={'canvas'} />
                     </div>
                 </div>
             </div>
