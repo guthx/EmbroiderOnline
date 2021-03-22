@@ -28,7 +28,8 @@ export const colorModes = {
     OPAQUE_TO_COLOR: 1,
 }
 
-const STITCH_SIZE = 40;
+const STITCH_SIZE = 122;
+const LINE_WIDTH = 6;
 
 export default function Project() {
     const settings = useRef({
@@ -56,6 +57,7 @@ export default function Project() {
     }, [])
 
     const spritesRef = useRef();
+    const spritesheet = useRef();
     const stitchedTextures = useRef();
     const unstitchedTextures = useRef();
     const zoomRectangle = useRef();
@@ -157,8 +159,8 @@ export default function Project() {
                 view: document.getElementById('canvas')
             });
             viewport.current = new Viewport({
-                worldWidth: stitches[0].length * STITCH_SIZE,
-                worldHeight: stitches.length * STITCH_SIZE,
+                worldWidth: stitches[0].length * STITCH_SIZE + LINE_WIDTH,
+                worldHeight: stitches.length * STITCH_SIZE + LINE_WIDTH,
                 screenWidth: wrapper.clientWidth,
                 screenHeight: wrapper.clientHeight,
                 disableOnContextMenu: true,
@@ -178,11 +180,13 @@ export default function Project() {
 
                 spritesRef.current[y] = new Array(stitches[0].length)
                 for (let x = 0; x < stitches[0].length; x++) {
-                    if (stitches[y][x].stitched)
+                    if (stitches[y][x].stitched) {
                         spritesRef.current[y][x] = viewport.current.addChild(new PIXI.Sprite(stitchedTextures.current[stitches[y][x].colorIndex]));
-                    else
+                    }
+                    else {
                         spritesRef.current[y][x] = viewport.current.addChild(new PIXI.Sprite(unstitchedTextures.current[stitches[y][x].colorIndex]));
-                    spritesRef.current[y][x].width = spritesRef.current[y][x].height = STITCH_SIZE + 2;
+                    }
+                    spritesRef.current[y][x].width = spritesRef.current[y][x].height = STITCH_SIZE + LINE_WIDTH;
                     spritesRef.current[y][x].position.set(x * STITCH_SIZE, y * STITCH_SIZE);
                     i++;
                 }
@@ -194,27 +198,27 @@ export default function Project() {
                 linesY.current [i] = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
                 linesY.current [i].tint = 0x000000;
                 linesY.current [i].width = stitches[0].length * STITCH_SIZE;
-                linesY.current [i].height = 5;
-                linesY.current[i].position.set(0, y * STITCH_SIZE - 2);
+                linesY.current[i].height = LINE_WIDTH * 2;
+                linesY.current[i].position.set(0, y * STITCH_SIZE - LINE_WIDTH);
                 i++;
             }
             i = 0;
             for (let x = 10; x < stitches[0].length; x += 10) {
                 linesX.current [i] = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
                 linesX.current [i].tint = 0x000000;
-                linesX.current [i].height = stitches.length * STITCH_SIZE;
-                linesX.current [i].width = 5;
-                linesX.current[i].position.set(x * STITCH_SIZE - 2, 0);
+                linesX.current[i].height = stitches.length * STITCH_SIZE;
+                linesX.current[i].width = LINE_WIDTH * 2;
+                linesX.current[i].position.set(x * STITCH_SIZE - LINE_WIDTH, 0);
                 i++;
             }
-            let scale = viewport.current.findFit(stitches[0].length * STITCH_SIZE, stitches.length * STITCH_SIZE);
+            let scale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
             viewport.current.clampZoom({
                 minScale: scale,
                 maxScale: 1
             });
             zoomRectangle.current = viewport.current.addChild(new PIXI.Graphics());
             zoomRectangle.current.lineStyle(10, 0x000000);
-            zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
+            zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth, scale * viewport.current.worldHeight);
             zoomRectangle.current.renderable = false;
 
             let miniatureCanvas = document.createElement('canvas');
@@ -297,12 +301,12 @@ export default function Project() {
             return () => {
                 if (stitchedTextures.current) {
                     for (let i = 0; i < stitchedTextures.current.length; i++) {
-                        stitchedTextures.current[i].destroy(true);
+                        stitchedTextures.current[i].destroy();
                         stitchedTextures.current[i] = null;
                     }
                     for (let y = 0; y < spritesRef.current.length; y++)
                         for (let x = 0; x < spritesRef.current[0].length; x++) {
-                            spritesRef.current[y][x].destroy(true);
+                            spritesRef.current[y][x].destroy();
                             spritesRef.current[y][x] = null;
                         }
                     for (let i = 0; i < linesX.current .length; i++) {
@@ -313,6 +317,7 @@ export default function Project() {
                         linesY.current [i].destroy(true);
                         linesY.current [i] = null;
                     }
+                    spritesheet.current.destroy(true);
                     miniatureTexture.destroy();
                     miniatureTexture = null;
                     miniatureRect.current.destroy();
@@ -433,14 +438,19 @@ export default function Project() {
     }
 
     function generateTextures() {
-        if (!stitchedTextures.current) {
+        if (!spritesheet.current) {
+            let lineCount = Math.ceil((colors.length * 2 * (STITCH_SIZE + LINE_WIDTH)) / 2048);
+            spritesheet.current = new PIXI.RenderTexture.create({ width: 2048, height: (STITCH_SIZE + LINE_WIDTH) * lineCount });
             stitchedTextures.current = new Array(colors.length);
             unstitchedTextures.current = new Array(colors.length);
-            for (let i = 0; i < colors.length; i++) {
-                stitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
-                unstitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
-            }
         }
+        let clearSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+        clearSprite.width = spritesheet.current.width;
+        clearSprite.height = spritesheet.current.height;
+        clearSprite.alpha = 0;
+        app.current.renderer.render(clearSprite, spritesheet.current, true);
+        clearSprite.destroy();
+        clearSprite = null;
         if (settings.current.colorMode == colorModes.TRANSPARENT_TO_OPAQUE) {
             if (settings.current.colorLock) {
                 for (let i = 0; i < colors.length; i++) {
@@ -449,31 +459,40 @@ export default function Project() {
                         let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                         const rect = new PIXI.Graphics();
 
-                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                         rect.beginFill(colorHex);
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
                         const text = new PIXI.Text(i.toString(), {
                             fontFamily: 'Arial',
-                            fontSize: 20,
+                            fontSize: STITCH_SIZE / 2,
                             fill: 0x000000,
                         });
                         text.anchor.set(0.5);
-                        text.x = STITCH_SIZE / 2 + 1;
-                        text.y = STITCH_SIZE / 2 + 1;
+                        text.x = (STITCH_SIZE + LINE_WIDTH) / 2;
+                        text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                         rect.addChild(text);
                         text.updateText();
-                        app.current.renderer.render(rect, stitchedTextures.current[i]);
+                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                         rect.clear();
-                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                         rect.beginFill(colorHex, 0.4);
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
                         text.alpha = 0.4;
                         text.updateText();
-                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
-
+                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
                         rect.destroy(true);
                     }
                     else {
@@ -481,12 +500,23 @@ export default function Project() {
                         let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                         const rect = new PIXI.Graphics();
 
-                        rect.lineStyle({ width: 2, color: 0x000000, alpha: 0.2, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alpha: 0.2, alignment: 1 });
                         rect.beginFill(colorHex, 0.2);
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
-                        app.current.renderer.render(rect, stitchedTextures.current[i]);
-                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
+
+                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
                        
                         rect.destroy(true);
                     }
@@ -499,36 +529,48 @@ export default function Project() {
                     let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                     const rect = new PIXI.Graphics();
 
-                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                     rect.beginFill(colorHex);
-                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                     rect.endFill();
                     const text = new PIXI.Text(i.toString(), {
                         fontFamily: 'Arial',
-                        fontSize: 20,
+                        fontSize: STITCH_SIZE / 2,
                         fill: 0x000000,
                     });
                     text.anchor.set(0.5);
-                    text.x = STITCH_SIZE / 2 + 1;
-                    text.y = STITCH_SIZE / 2 + 1;
+                    text.x = (STITCH_SIZE + LINE_WIDTH) / 2;
+                    text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                     rect.addChild(text);
                     text.updateText();
-                    app.current.renderer.render(rect, stitchedTextures.current[i]);
+                    let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    let row = i % (parseInt(2048 / STITCH_SIZE));
+                    rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                    app.current.renderer.render(rect, spritesheet.current, false);
+                    stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                        new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                     rect.clear();
-                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                     rect.beginFill(colorHex, 0.4);
-                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                     rect.endFill();
                     text.alpha = 0.4;
                     text.updateText();
-                    app.current.renderer.render(rect, unstitchedTextures.current[i]);
+
+                    line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                    rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                    app.current.renderer.render(rect, spritesheet.current, false);
+                    unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                        new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                     rect.destroy(true);
                 }
             }
         }
         else if (settings.current.colorMode == colorModes.OPAQUE_TO_COLOR) {
+            
             if (settings.current.colorLock) {
                 for (let i = 0; i < colors.length; i++) {
                     if (settings.current.selectedColor == i) {
@@ -536,30 +578,40 @@ export default function Project() {
                         let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                         const rect = new PIXI.Graphics();
 
-                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                         rect.beginFill(parseInt(`0x${settings.current.customColor.slice(1, 7)}`, 16));
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
                         const text = new PIXI.Text(i.toString(), {
                             fontFamily: 'Arial',
-                            fontSize: 20,
+                            fontSize: STITCH_SIZE / 2,
                             fill: 0x000000,
                         });
                         text.anchor.set(0.5);
-                        text.x = STITCH_SIZE / 2 + 1;
-                        text.y = STITCH_SIZE / 2 + 1;
+                        text.x = (STITCH_SIZE + LINE_WIDTH) / 2;
+                        text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                         rect.addChild(text);
                         text.updateText();
-                        app.current.renderer.render(rect, stitchedTextures.current[i]);
+                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                         rect.clear();
-                        rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                         rect.beginFill(colorHex);
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
                         text.alpha = 0.4;
                         text.updateText();
-                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                         rect.destroy(true);
                     }
@@ -568,12 +620,22 @@ export default function Project() {
                         let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                         const rect = new PIXI.Graphics();
 
-                        rect.lineStyle({ width: 2, color: 0x000000, alpha: 0.2, alignment: 1 });
+                        rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alpha: 0.2, alignment: 1 });
                         rect.beginFill(colorHex, 0.2);
-                        rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                        rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
-                        app.current.renderer.render(rect, stitchedTextures.current[i]);
-                        app.current.renderer.render(rect, unstitchedTextures.current[i]);
+                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
+                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                        app.current.renderer.render(rect, spritesheet.current, false);
+                        unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                            new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)))
 
                         rect.destroy(true);
                     }
@@ -586,34 +648,45 @@ export default function Project() {
                     let colorHex = (color.red << 16) + (color.green << 8) + color.blue;
                     const rect = new PIXI.Graphics();
 
-                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                     rect.beginFill(parseInt(`0x${settings.current.customColor.slice(1, 7)}`, 16));
-                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                     rect.endFill();
                     const text = new PIXI.Text(i.toString(), {
                         fontFamily: 'Arial',
-                        fontSize: 20,
+                        fontSize: STITCH_SIZE / 2,
                         fill: 0x000000,
                     });
                     text.anchor.set(0.5);
-                    text.x = STITCH_SIZE / 2 + 1;
-                    text.y = STITCH_SIZE / 2 + 1;
+                    text.x = (STITCH_SIZE + LINE_WIDTH) / 2;
+                    text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                     rect.addChild(text);
                     text.updateText();
-                    app.current.renderer.render(rect, stitchedTextures.current[i]);
+                    let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    let row = i % (parseInt(2048 / STITCH_SIZE));
+                    rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                    app.current.renderer.render(rect, spritesheet.current, false);
+                    stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                        new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
                     rect.clear();
-                    rect.lineStyle({ width: 2, color: 0x000000, alignment: 1 });
+                    rect.lineStyle({ width: LINE_WIDTH, color: 0x000000, alignment: 1 });
                     rect.beginFill(colorHex);
-                    rect.drawRect(2, 2, STITCH_SIZE - 2, STITCH_SIZE - 2);
+                    rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                     rect.endFill();
                     text.alpha = 0.4;
                     text.updateText();
-                    app.current.renderer.render(rect, unstitchedTextures.current[i]);
+                    line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                    rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
+                    app.current.renderer.render(rect, spritesheet.current, false);
+                    unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
+                        new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)))
 
                     rect.destroy(true);
                 }
             }
+            
         }
     }
 
