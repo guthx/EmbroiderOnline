@@ -30,6 +30,7 @@ export const colorModes = {
 
 const STITCH_SIZE = 122;
 const LINE_WIDTH = 6;
+const defaultScale = 64 / (STITCH_SIZE + LINE_WIDTH);
 
 export default function Project() {
     const settings = useRef({
@@ -83,6 +84,7 @@ export default function Project() {
     let scale = 1.0;
     let posX = 0;
     let posY = 0;
+    
 
     useEffect(() => {
         if (currentUser) {
@@ -216,9 +218,10 @@ export default function Project() {
                 minScale: scale,
                 maxScale: 1
             });
+            viewport.current.setZoom(defaultScale);
             zoomRectangle.current = viewport.current.addChild(new PIXI.Graphics());
             zoomRectangle.current.lineStyle(10, 0x000000);
-            zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth, scale * viewport.current.worldHeight);
+            zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth / defaultScale, scale * viewport.current.worldHeight / defaultScale);
             zoomRectangle.current.renderable = false;
 
             let miniatureCanvas = document.createElement('canvas');
@@ -242,6 +245,7 @@ export default function Project() {
             miniature.current.width = stitches[0].length;
             miniature.current.height = stitches.length;
             miniature.current.position.set(0, 0);
+            
             minData = null
             miniatureCanvas = null;
             app.current.stage.addChild(miniature.current);
@@ -252,14 +256,13 @@ export default function Project() {
                 (viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length);
 
             miniature.current.renderable = false;
-            
             var cull = new Cull.Simple();
             cull.addList(viewport.current.children);
             cull.cull(viewport.current.getVisibleBounds());
 
             PIXI.Ticker.shared.add(() => {
                 if (viewport.current.dirty) {
-                    cull.cull(viewport.current.getVisibleBounds());
+                    cull.cull(viewport.current.getVisibleBounds(), true);
                     viewport.current.dirty = false;
                 }
             });
@@ -344,7 +347,7 @@ export default function Project() {
 
     useEffect(() => {
         if (loaded && currentUser) {
-            viewport.current.setZoom(1);
+            viewport.current.setZoom(defaultScale);
             viewport.current.on('mousedown', (e) => mouseDown(e));
             viewport.current.on('mouseup', e => mouseUp(e));
             viewport.current.on('moved', e => {
@@ -701,7 +704,7 @@ export default function Project() {
         if (mousePressed == 0) {
             var x = parseInt(pos.x / STITCH_SIZE);
             var y = parseInt(pos.y / STITCH_SIZE);
-            if (x < stitches[0].length && y < stitches.length && x > 0 && y > 0)
+            if (x < stitches[0].length && y < stitches.length && x >= 0 && y >= 0)
                 switch (settings.current.cursorMode) {
                     case cursorModes.STITCH:
                         completeStitch(x, y);
@@ -734,7 +737,7 @@ export default function Project() {
         }
         var x = parseInt(pos.x / STITCH_SIZE);
         var y = parseInt(pos.y / STITCH_SIZE);
-        if (x < stitches[0].length && y < stitches.length && x > 0 && y > 0) {
+        if (x < stitches[0].length && y < stitches.length && x >= 0 && y >= 0) {
             if (mousePressed == 0) {
 
                 switch (settings.current.cursorMode) {
@@ -785,6 +788,7 @@ export default function Project() {
     }
     
     const mouseUp = (e) => {
+        console.log(selectedStitches);
         mousePressed = -1;
         if (selectedStitches.length > 0) {
             hubConnection.invoke('UpdateStitches', selectedStitches);
@@ -811,8 +815,7 @@ export default function Project() {
 
     const completeStitch = (x, y) => {
         if (!stitchArray[y][x].stitched &&
-            (settings.current.colorLock == false || settings.current.selectedColor == stitchArray[y][x].colorIndex) &&
-            !selectedStitches.find(s => s.x == x && s.y == y)
+            (settings.current.colorLock == false || settings.current.selectedColor == stitchArray[y][x].colorIndex)
         ) {
             selectedStitches.push({ x: x, y: y });
             stitchArray[y][x].stitched = true;
@@ -822,8 +825,7 @@ export default function Project() {
 
     const eraseStitch = (x, y) => {
         if (stitchArray[y][x].stitched &&
-            (settings.current.colorLock == false || settings.current.selectedColor == stitchArray[y][x].colorIndex) &&
-            !selectedStitches.find(s => s.x == x && s.y == y)
+            (settings.current.colorLock == false || settings.current.selectedColor == stitchArray[y][x].colorIndex)
         ) {
             selectedStitches.push({ x: x, y: y });
             stitchArray[y][x].stitched = false;
@@ -832,21 +834,21 @@ export default function Project() {
     }
 
     const zoomOut = () => {
-        scale = viewport.current.findFit(stitches[0].length * STITCH_SIZE, stitches.length * STITCH_SIZE);
+        scale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
         viewport.current.setZoom(scale, true);
         setGuideStyles();
 
         zoomRectangle.current.clear();
         zoomRectangle.current.lineStyle(20, 0x8a2be2);
-        zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
+        zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth / defaultScale, scale * viewport.current.worldHeight / defaultScale);
         zoomRectangle.current.renderable = true;
     }
 
 
     const zoomIn = (pos) => {
-        scale = 1;
+        scale = defaultScale;
         setPrevCursorMode.current();
-        viewport.current.setZoom(scale, true);
+        viewport.current.setZoom(defaultScale, true);
         viewport.current.moveCenter(pos.x, pos.y);
         setGuideStyles();
     }
