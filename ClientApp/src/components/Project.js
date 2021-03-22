@@ -37,6 +37,7 @@ export default function Project() {
         colorLock: false,
         colorMode: colorModes.OPAQUE_TO_COLOR,
         customColor: 'ffffff',
+        miniaturePos: 'top-left',
     });
     const { id } = useParams();
     const [stitches, setStitches] = useState([]);
@@ -60,6 +61,8 @@ export default function Project() {
     const zoomRectangle = useRef();
     const app = useRef();
     const viewport = useRef();
+    const miniature = useRef();
+    const miniatureRect = useRef();
 
     const setSelectedColor = useRef();
     const setHoverColor = useRef();
@@ -117,20 +120,6 @@ export default function Project() {
                     setHubConnection(hub);
                 });
 
-            window.addEventListener('resize', (e) => {
-                let wrapper = document.getElementById('canvas-wrapper');
-                app.current.renderer.resize(wrapper.clientWidth, wrapper.clientHeight);
-                app.current.view.width = wrapper.clientWidth;
-                app.current.view.height = wrapper.clientHeight;
-                viewport.current.resize(wrapper.clientWidth, wrapper.clientHeight);
-                let scale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
-                viewport.current.clampZoom({
-                    minScale: scale,
-                    maxScale: 1
-                });
-            })
-
-
             return () => {
                 mousePressed = null;
                 selectedStitches = null;
@@ -176,9 +165,6 @@ export default function Project() {
                 interaction: app.current.renderer.plugins.interaction,
             });
             app.current.stage.addChild(viewport.current);
-            app.current.stage.backgroundColor = 0xffffff;
-            app.current.render();
-            viewport.current.backgroundColor = 0xffffff;
             app.current.renderer.plugins.interaction.moveWhenInside = true;
             //viewport.current.drag().wheel();
             let background = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
@@ -230,6 +216,38 @@ export default function Project() {
             zoomRectangle.current.lineStyle(10, 0x000000);
             zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
             zoomRectangle.current.renderable = false;
+
+            let miniatureCanvas = document.createElement('canvas');
+            let miniatuteCtx = miniatureCanvas.getContext('2d');
+            let minData = miniatuteCtx.createImageData(stitches[0].length, stitches.length);
+            i = 0;
+            for (let y = 0; y < stitches.length; y++)
+                for (let x = 0; x < stitches[0].length; x++) {
+                    let color = colors[stitches[y][x].colorIndex];
+                    minData.data[i + 0] = color.red;
+                    minData.data[i + 1] = color.green;
+                    minData.data[i + 2] = color.blue;
+                    minData.data[i + 3] = 255;
+                    i += 4;
+                }
+            miniatureCanvas.width = stitches[0].length;
+            miniatureCanvas.height = stitches.length;
+            miniatuteCtx.putImageData(minData, 0, 0);
+            let miniatureTexture = new PIXI.Texture.from(miniatureCanvas, { width: stitches[0].length, height: stitches.length });
+            miniature.current = viewport.current.addChild(new PIXI.Sprite(miniatureTexture));
+            miniature.current.width = stitches[0].length;
+            miniature.current.height = stitches.length;
+            miniature.current.position.set(0, 0);
+            minData = null
+            miniatureCanvas = null;
+            app.current.stage.addChild(miniature.current);
+
+            miniatureRect.current = miniature.current.addChild(new PIXI.Graphics());
+            miniatureRect.current.lineStyle(2);
+            miniatureRect.current.drawRect(0, 0, (viewport.current.screenWidth / viewport.current.worldWidth) * stitches[0].length,
+                (viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length);
+
+            miniature.current.renderable = false;
             
             var cull = new Cull.Simple();
             cull.addList(viewport.current.children);
@@ -242,7 +260,6 @@ export default function Project() {
                 }
             });
             
-            console.log(spritesRef.current);
             viewport.current.drag({
                 mouseButtons: 'right-left',
             });
@@ -271,6 +288,9 @@ export default function Project() {
                 }
             setGuideStyles();
             setStitchCounts.current(initialStitchCounts);
+
+            window.addEventListener('resize', handleResize);
+
             setLoaded(true);
             setReconnecting(false);
 
@@ -293,7 +313,12 @@ export default function Project() {
                         linesY.current [i].destroy(true);
                         linesY.current [i] = null;
                     }
-                    console.log(app.current.renderer.texture);
+                    miniatureTexture.destroy();
+                    miniatureTexture = null;
+                    miniatureRect.current.destroy();
+                    miniatureRect.current = null;
+                    miniature.current.destroy();
+                    miniature.current = null;
                     for (let key in PIXI.utils.TextureCache) {
                         PIXI.utils.TextureCache[key].destroy(true);
                     }
@@ -302,7 +327,7 @@ export default function Project() {
                     viewport.current.destroy();
                     app.current.renderer.gl.getExtension('WEBGL_lose_context').loseContext();
                     app.current.destroy();
-
+                    window.removeEventListener('resize', handleResize);
 
 
                 }
@@ -321,6 +346,10 @@ export default function Project() {
                 if (e.type == 'drag') {
                     guideHorizontal.current.style.transform = `translate(${e.viewport.lastViewport.x}px, 0)`;
                     guideVertical.current.style.transform = `translate(0, ${e.viewport.lastViewport.y}px)`;
+                    miniatureRect.current.position.set(
+                        (-e.viewport.lastViewport.x / scale / viewport.current.worldWidth) * miniature.current.width,
+                        (-e.viewport.lastViewport.y / scale / viewport.current.worldHeight) * miniature.current.height
+                    );
                 }
             });
             viewport.current.on('zoomed-end', e => {
@@ -330,6 +359,16 @@ export default function Project() {
                 guideVertical.current.style.transform = `translate(0, ${e.lastViewport.y}px)`;
                 guideHorizontal.current.style.left = `-${STITCH_SIZE * 5 * e.lastViewport.scaleX}px`;
                 guideVertical.current.style.top = `-${STITCH_SIZE * 5 * e.lastViewport.scaleX}px`;
+                
+                let width = ((viewport.current.screenWidth / viewport.current.worldWidth) * stitches[0].length) / scale;
+                let height = ((viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length) / scale;
+                miniatureRect.current.clear();
+                miniatureRect.current.lineStyle(2);
+                miniatureRect.current.drawRect(0, 0, width, height);
+                miniatureRect.current.position.set(
+                    (-e.lastViewport.x / scale / viewport.current.worldWidth) * miniature.current.width,
+                    (-e.lastViewport.y / scale / viewport.current.worldHeight) * miniature.current.height
+                );
             });
             viewport.current.on('mousemove', mouseMove);
             viewport.current.interactive = true;
@@ -337,6 +376,50 @@ export default function Project() {
         }
             
     }, [loaded]);
+
+    function handleResize(e) {
+        let wrapper = document.getElementById('canvas-wrapper');
+        app.current.renderer.resize(wrapper.clientWidth, wrapper.clientHeight);
+        app.current.view.width = wrapper.clientWidth;
+        app.current.view.height = wrapper.clientHeight;
+        viewport.current.resize(wrapper.clientWidth, wrapper.clientHeight);
+        let minScale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
+        viewport.current.clampZoom({
+            minScale: minScale,
+            maxScale: 1
+        });
+        scale = viewport.current.lastViewport.scaleX;
+        let width = ((viewport.current.screenWidth / viewport.current.worldWidth) * stitches[0].length) / scale;
+        let height = ((viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length) / scale;
+        miniatureRect.current.clear();
+        miniatureRect.current.lineStyle(2);
+        miniatureRect.current.drawRect(0, 0, width, height);
+        miniatureRect.current.position.set(
+            (-viewport.current.lastViewport.x / scale / viewport.current.worldWidth) * miniature.current.width,
+            (-viewport.current.lastViewport.y / scale / viewport.current.worldHeight) * miniature.current.height
+        );
+        setMiniaturePos(settings.current.miniaturePos);
+    }
+
+    function setMiniaturePos(position) {
+        switch (position) {
+            case 'top-left':
+                miniature.current.position.set(0, 0);
+                break;
+            case 'top-right':
+                miniature.current.position.set(app.current.view.width - miniature.current.width, 0);
+                break;
+            case 'bottom-left':
+                miniature.current.position.set(0, app.current.view.height - miniature.current.height);
+                break;
+            case 'bottom-right':
+                miniature.current.position.set(app.current.view.width - miniature.current.width, app.current.view.height - miniature.current.height);
+                break;
+            default:
+                miniature.current.position.set(0, 0);
+                break;
+        }
+    }
 
     function enablePan(enable) {
         if (enable)
@@ -353,7 +436,6 @@ export default function Project() {
         if (!stitchedTextures.current) {
             stitchedTextures.current = new Array(colors.length);
             unstitchedTextures.current = new Array(colors.length);
-            console.log(colors);
             for (let i = 0; i < colors.length; i++) {
                 stitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
                 unstitchedTextures.current[i] = new PIXI.RenderTexture.create({ width: STITCH_SIZE + 2, height: STITCH_SIZE + 2 });
@@ -622,7 +704,6 @@ export default function Project() {
     }
     
     const drawStitch = (x, y) => {
-        console.log({ x, y });
         let color = stitchArray[y][x].colorIndex;
         if (stitchArray[y][x].stitched)
             spritesRef.current[y][x].texture = stitchedTextures.current[color];
@@ -686,8 +767,6 @@ export default function Project() {
         zoomRectangle.current.lineStyle(20, 0x8a2be2);
         zoomRectangle.current.drawRect(0, 0, scale * stitches[0].length * STITCH_SIZE, scale * stitches.length * STITCH_SIZE);
         zoomRectangle.current.renderable = true;
-        console.log(zoomRectangle.current);
-        console.log(viewport.current);
     }
 
 
@@ -703,6 +782,12 @@ export default function Project() {
         zoomRectangle.current.renderable = false;
     }
 
+    function openMiniature(open) {
+        if (open)
+            miniature.current.renderable = true;
+        else
+            miniature.current.renderable = false;
+    }
     
     const GuideHorizontal = () => {
         if (stitches.length == 0)
@@ -804,6 +889,8 @@ export default function Project() {
                     zoomOut={zoomOut}
                     enablePan={enablePan}
                     clearZoomRectangle={clearZoomRectangle}
+                    openMiniature={openMiniature}
+                    setMiniaturePos={setMiniaturePos}
                 />
                 <div className={'project-wrapper'}
                     style={{ pointerEvents: `${loaded ? 'all' : 'none'}` }}
@@ -813,7 +900,8 @@ export default function Project() {
                     <div style={{
                         backgroundColor: 'white',
                         zIndex: '9'
-                    }}></div>
+                    }}>
+                    </div>
                     <div id={'canvas-wrapper'}>
                         <canvas width='1000' height='800' id={'canvas'} />
                     </div>

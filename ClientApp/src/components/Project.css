@@ -287,3 +287,12 @@
 #canvas-wrapper canvas {
     pointer-events: inherit;
 }
+
+.miniature-button {
+    background-color: white;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    font-size: 32px;
+    justify-content: center;
+}

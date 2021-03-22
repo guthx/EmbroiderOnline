@@ -11,6 +11,7 @@ import colorPaletteSolid from '@iconify-icons/clarity/color-palette-solid';
 import { CompactPicker } from 'react-color';
 import { Tooltip } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
+import eyeSolid from '@iconify-icons/clarity/eye-solid';
 
 
 const tooltips = {
@@ -21,6 +22,7 @@ const tooltips = {
     colorLock: "Select and lock a color, blocking the rest of colors from being editable",
     settings: "Change color mode settings",
     palette: "Check palette of colors used in your project",
+    miniature: "Show a miniature of your project displaying which part you are currently editing",
 }
 
 export default function Toolbar({
@@ -36,7 +38,9 @@ export default function Toolbar({
     updateStitchCountsRef,
     generateTextures,
     enablePan,
-    clearZoomRectangle
+    clearZoomRectangle,
+    openMiniature,
+    setMiniaturePos,
 }) {
     const [cursorMode, setCursorMode] = useState(cursorModes.PAN);
     const [selectedColor, setSelectedColor] = useState(null);
@@ -50,17 +54,20 @@ export default function Toolbar({
     const [customColor, setCustomColor] = useState('#ffffff');
     const [stitchCounts, setStitchCounts] = useState([]);
     const [stitchCountMenu, setStitchCountMenu] = useState(false);
+    const [miniatureOpen, setMiniatureOpen] = useState(false);
+    const [miniaturePosition, setMiniaturePosition] = useState('top-left');
     setStitchCountsRef.current = setStitchCounts;
-    const isInitialMount = useRef(2);
+    const isInitialMount = useRef(3);
     useEffect(() => {
         settingsRef.current = {
             cursorMode: cursorMode,
             selectedColor: selectedColor,
             colorMode: colorMode,
             colorLock: colorLock,
-            customColor: customColor
+            customColor: customColor,
+            miniaturePos: miniaturePosition
         };
-    }, [cursorMode, selectedColor, colorMode, colorLock, customColor]);
+    }, [cursorMode, selectedColor, colorMode, colorLock, customColor, miniaturePosition]);
     
     useEffect(() => {
         if (isInitialMount.current)
@@ -98,6 +105,16 @@ export default function Toolbar({
         else
             generateTextures();
     }, [colorLock, colorMode, customColor]);
+    useEffect(() => {
+        if (isInitialMount.current)
+            isInitialMount.current--;
+        else {
+            if (miniatureOpen)
+                openMiniature(true);
+            else
+                openMiniature(false);
+        }   
+    }, [miniatureOpen])
 
     function revertCursorMode() {
         setCursorMode(prevCursorMode);
@@ -173,6 +190,13 @@ export default function Toolbar({
             setStitchCountMenu(false);
         }
             
+    }
+    function handleMiniatureOpen(e) {
+        setMiniatureOpen(!miniatureOpen);
+    }
+    function handleSetMiniaturePosition(pos) {
+        setMiniaturePos(pos);
+        setMiniaturePosition(pos);
     }
 
     const OptionTooltip = withStyles((theme) => ({
@@ -311,6 +335,49 @@ export default function Toolbar({
                                 onChangeComplete={handleColorChange}
                             />
                         </div>
+                        <div className={'title'}>
+                            Miniature position
+                        </div>
+                        <div className={'option'}>
+                            <input
+                                type="checkbox"
+                                checked={miniaturePosition == 'top-left'}
+                                onChange={() => handleSetMiniaturePosition('top-left')}
+                            />
+                            <div>
+                                Top-left
+                            </div>
+                        </div>
+                        <div className={'option'}>
+                            <input
+                                type="checkbox"
+                                checked={miniaturePosition == 'top-right'}
+                                onChange={() => handleSetMiniaturePosition('top-right')}
+                            />
+                            <div>
+                                Top-right
+                            </div>
+                        </div>
+                        <div className={'option'}>
+                            <input
+                                type="checkbox"
+                                checked={miniaturePosition == 'bottom-left'}
+                                onChange={() => handleSetMiniaturePosition('bottom-left')}
+                            />
+                            <div>
+                                Bottom-left
+                            </div>
+                        </div>
+                        <div className={'option'}>
+                            <input
+                                type="checkbox"
+                                checked={miniaturePosition == 'bottom-right'}
+                                onChange={() => handleSetMiniaturePosition('bottom-right')}
+                            />
+                            <div>
+                                Bottom-right
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div className={'toolbar-item'}>
@@ -361,6 +428,16 @@ export default function Toolbar({
                             })
                         }
                     </div>
+                </div>
+                <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.miniature} placement="right" className={'tool-tip'}>
+                        <div
+                            className={`icon ${miniatureOpen ? 'selected' : ''}`}
+                            onClick={handleMiniatureOpen}
+                        >
+                            <Icon icon={eyeSolid} />
+                        </div>
+                    </OptionTooltip>
                 </div>
             </div>
 
