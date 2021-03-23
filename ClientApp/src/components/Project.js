@@ -159,6 +159,8 @@ export default function Project() {
                 height: wrapper.clientHeight,
                 view: document.getElementById('canvas')
             });
+            app.current.renderer.plugins.interaction.interactionFrequency = 5;
+            app.current.renderer.plugins.interaction.moveWhenInside = true;
             viewport.current = new Viewport({
                 worldWidth: stitches[0].length * STITCH_SIZE + LINE_WIDTH,
                 worldHeight: stitches.length * STITCH_SIZE + LINE_WIDTH,
@@ -168,7 +170,7 @@ export default function Project() {
                 interaction: app.current.renderer.plugins.interaction,
             });
             app.current.stage.addChild(viewport.current);
-            app.current.renderer.plugins.interaction.moveWhenInside = true;
+            
             //viewport.current.drag().wheel();
             let background = viewport.current.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
             background.width = stitches[0].length * STITCH_SIZE;
@@ -222,7 +224,7 @@ export default function Project() {
             });
             viewport.current.setZoom(defaultScale);
             zoomRectangle.current = viewport.current.addChild(new PIXI.Graphics());
-            zoomRectangle.current.lineStyle(10, 0x000000);
+            zoomRectangle.current.lineStyle(4 / scale, 0x000000);
             zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth / defaultScale, scale * viewport.current.worldHeight / defaultScale);
             zoomRectangle.current.renderable = false;
 
@@ -262,10 +264,8 @@ export default function Project() {
             prevBounds = initalBounds(viewport.current.getVisibleBounds());
             PIXI.Ticker.shared.add(() => {
                 if (viewport.current.dirty) {
-                    let start = performance.now();
                     cull(viewport.current.getVisibleBounds());
                     viewport.current.dirty = false;
-                    console.log(performance.now() - start);
                 }
             });
             
@@ -351,8 +351,8 @@ export default function Project() {
         if (loaded && currentUser) {
             viewport.current.setZoom(defaultScale);
             scale = defaultScale;
-            viewport.current.on('mousedown', (e) => mouseDown(e));
-            viewport.current.on('mouseup', e => mouseUp(e));
+            viewport.current.on('pointerdown', (e) => mouseDown(e));
+            viewport.current.on('pointerup', e => mouseUp(e));
             viewport.current.on('moved', e => {
                 if (e.type == 'drag') {
                     guideHorizontal.current.style.transform = `translate(${e.viewport.lastViewport.x}px, 0)`;
@@ -808,25 +808,29 @@ export default function Project() {
 
 
             }
-            setHoverColor.current(stitchArray[y][x].colorIndex);
-        }
-        if (mousePressed == -1 && settings.current.cursorMode == cursorModes.ZOOM) {
-            let bounds = {
-                width: zoomRectangle.current.width,
-                height: zoomRectangle.current.height
-            };
-            let rectX = pos.x - bounds.width / 2;
-            if (rectX < 0)
-                rectX = 0;
-            else if (rectX > viewport.current.worldWidth - bounds.width)
-                rectX = viewport.current.worldWidth - bounds.width;
-            let rectY = pos.y - bounds.height / 2;
-            if (rectY < 0)
-                rectY = 0;
-            else if (rectY > viewport.current.worldHeight - bounds.height)
-                rectY = viewport.current.worldHeight - bounds.height;
-            zoomRectangle.current.position.set(rectX, rectY);
             
+        }
+        if (mousePressed == -1) {
+            if (settings.current.cursorMode == cursorModes.ZOOM) {
+                let bounds = {
+                    width: zoomRectangle.current.width,
+                    height: zoomRectangle.current.height
+                };
+                let rectX = pos.x - bounds.width / 2;
+                if (rectX < 0)
+                    rectX = 0;
+                else if (rectX > viewport.current.worldWidth - bounds.width)
+                    rectX = viewport.current.worldWidth - bounds.width;
+                let rectY = pos.y - bounds.height / 2;
+                if (rectY < 0)
+                    rectY = 0;
+                else if (rectY > viewport.current.worldHeight - bounds.height)
+                    rectY = viewport.current.worldHeight - bounds.height;
+                zoomRectangle.current.position.set(rectX, rectY);
+            }
+            else {
+                setHoverColor.current(stitchArray[y][x].colorIndex);
+            }    
         }
         
         
@@ -847,7 +851,6 @@ export default function Project() {
     }
     
     const mouseUp = (e) => {
-        console.log(selectedStitches);
         mousePressed = -1;
         if (selectedStitches.length > 0) {
             hubConnection.invoke('UpdateStitches', selectedStitches);
@@ -898,7 +901,7 @@ export default function Project() {
         setGuideStyles();
 
         zoomRectangle.current.clear();
-        zoomRectangle.current.lineStyle(20, 0x8a2be2);
+        zoomRectangle.current.lineStyle(4 / scale, 0x8a2be2);
         zoomRectangle.current.drawRect(0, 0, scale * viewport.current.worldWidth / defaultScale, scale * viewport.current.worldHeight / defaultScale);
         zoomRectangle.current.renderable = true;
     }
