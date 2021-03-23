@@ -50,7 +50,6 @@ export default function Project() {
     const [loaded, setLoaded] = useState(false);
     const [projectAlreadyOpen, setProjectAlreadyOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
-
     useEffect(() => {
         authService.currentUser.subscribe(u => {
             setCurrentUser(u);
@@ -84,7 +83,7 @@ export default function Project() {
     let scale = 1.0;
     let posX = 0;
     let posY = 0;
-    
+    let prevBounds;
 
     useEffect(() => {
         if (currentUser) {
@@ -190,6 +189,7 @@ export default function Project() {
                     }
                     spritesRef.current[y][x].width = spritesRef.current[y][x].height = STITCH_SIZE + LINE_WIDTH;
                     spritesRef.current[y][x].position.set(x * STITCH_SIZE, y * STITCH_SIZE);
+                    spritesRef.current[y][x].visible = false;
                     i++;
                 }
             }
@@ -202,6 +202,7 @@ export default function Project() {
                 linesY.current [i].width = stitches[0].length * STITCH_SIZE;
                 linesY.current[i].height = LINE_WIDTH * 2;
                 linesY.current[i].position.set(0, y * STITCH_SIZE - LINE_WIDTH);
+                linesY.current[i].visible = false;
                 i++;
             }
             i = 0;
@@ -211,6 +212,7 @@ export default function Project() {
                 linesX.current[i].height = stitches.length * STITCH_SIZE;
                 linesX.current[i].width = LINE_WIDTH * 2;
                 linesX.current[i].position.set(x * STITCH_SIZE - LINE_WIDTH, 0);
+                linesX.current[i].visible = false;
                 i++;
             }
             let scale = viewport.current.findFit(viewport.current.worldWidth, viewport.current.worldHeight);
@@ -256,14 +258,14 @@ export default function Project() {
                 (viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length);
 
             miniature.current.renderable = false;
-            var cull = new Cull.Simple();
-            cull.addList(viewport.current.children);
-            cull.cull(viewport.current.getVisibleBounds());
 
+            prevBounds = initalBounds(viewport.current.getVisibleBounds());
             PIXI.Ticker.shared.add(() => {
                 if (viewport.current.dirty) {
-                    cull.cull(viewport.current.getVisibleBounds(), true);
+                    let start = performance.now();
+                    cull(viewport.current.getVisibleBounds());
                     viewport.current.dirty = false;
+                    console.log(performance.now() - start);
                 }
             });
             
@@ -348,6 +350,7 @@ export default function Project() {
     useEffect(() => {
         if (loaded && currentUser) {
             viewport.current.setZoom(defaultScale);
+            scale = defaultScale;
             viewport.current.on('mousedown', (e) => mouseDown(e));
             viewport.current.on('mouseup', e => mouseUp(e));
             viewport.current.on('moved', e => {
@@ -384,6 +387,58 @@ export default function Project() {
         }
             
     }, [loaded]);
+
+    function cull(bounds) {
+        let x1 = ~~(bounds.x / STITCH_SIZE);
+        let x2 = x1 + ~~(bounds.width / STITCH_SIZE) + 2;
+        let y1 = ~~(bounds.y / STITCH_SIZE);
+        let y2 = y1 + ~~(bounds.height / STITCH_SIZE) + 2;
+        if (x1 < 0)
+            x1 = 0;
+        if (y1 < 0)
+            y1 = 0;
+        if (x2 > stitches[0].length)
+            x2 = stitches[0].length;
+        if (y2 > stitches.length)
+            y2 = stitches.length;
+
+        for (let x = prevBounds.x1; x < prevBounds.x2; x++)
+            for (let y = prevBounds.y1; y < prevBounds.y2; y++)
+                spritesRef.current[y][x].visible = false;
+        for (let x = prevBounds.x1 - prevBounds.x1 % 10; x < prevBounds.x2 - 10; x += 10) {
+            linesX.current[x / 10].visible = false;
+        }
+        for (let y = prevBounds.y1 - prevBounds.y1 % 10; y < prevBounds.y2 - 10; y += 10) {
+            linesY.current[y / 10].visible = false;
+        }
+
+        for (let x = x1; x < x2; x++)
+            for (let y = y1; y < y2; y++)
+                spritesRef.current[y][x].visible = true;
+        for (let x = x1 - x1 % 10; x < x2 - 10; x += 10) {
+            linesX.current[x / 10].visible = true;
+        }
+        for (let y = y1 - y1 % 10; y < y2 - 10; y += 10) {
+            linesY.current[y / 10].visible = true;
+        }
+        prevBounds = { x1, x2, y1, y2 };
+    }
+
+    function initalBounds(bounds) {
+        let x1 = ~~(bounds.x / STITCH_SIZE);
+        let x2 = x1 + ~~(bounds.width / STITCH_SIZE) + 2;
+        let y1 = ~~(bounds.y / STITCH_SIZE);
+        let y2 = y1 + ~~(bounds.height / STITCH_SIZE) + 2;
+        if (x1 < 0)
+            x1 = 0;
+        if (y1 < 0)
+            y1 = 0;
+        if (x2 > stitches[0].length)
+            x2 = stitches[0].length;
+        if (y2 > stitches.length)
+            y2 = stitches.length;
+        return { x1, x2, y1, y2 };
+    }
 
     function handleResize(e) {
         let wrapper = document.getElementById('canvas-wrapper');
@@ -476,8 +531,8 @@ export default function Project() {
                         text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                         rect.addChild(text);
                         text.updateText();
-                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -490,8 +545,8 @@ export default function Project() {
                         rect.endFill();
                         text.alpha = 0.4;
                         text.updateText();
-                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -507,15 +562,15 @@ export default function Project() {
                         rect.beginFill(colorHex, 0.2);
                         rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
-                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
                             new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
 
-                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -546,8 +601,8 @@ export default function Project() {
                     text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                     rect.addChild(text);
                     text.updateText();
-                    let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                    let row = i % (parseInt(2048 / STITCH_SIZE));
+                    let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    let row = i % (~~(2048 / STITCH_SIZE));
                     rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                     app.current.renderer.render(rect, spritesheet.current, false);
                     stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -561,8 +616,8 @@ export default function Project() {
                     text.alpha = 0.4;
                     text.updateText();
 
-                    line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                    row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                    line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                     rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                     app.current.renderer.render(rect, spritesheet.current, false);
                     unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -595,8 +650,8 @@ export default function Project() {
                         text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                         rect.addChild(text);
                         text.updateText();
-                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -609,8 +664,8 @@ export default function Project() {
                         rect.endFill();
                         text.alpha = 0.4;
                         text.updateText();
-                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -627,14 +682,14 @@ export default function Project() {
                         rect.beginFill(colorHex, 0.2);
                         rect.drawRect(LINE_WIDTH, LINE_WIDTH, STITCH_SIZE - LINE_WIDTH, STITCH_SIZE - LINE_WIDTH);
                         rect.endFill();
-                        let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        let row = i % (parseInt(2048 / STITCH_SIZE));
+                        let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        let row = i % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
                             new PIXI.Rectangle(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH), (STITCH_SIZE + LINE_WIDTH)));
-                        line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                        row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                        line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                        row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                         rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                         app.current.renderer.render(rect, spritesheet.current, false);
                         unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -665,8 +720,8 @@ export default function Project() {
                     text.y = (STITCH_SIZE + LINE_WIDTH) / 2;
                     rect.addChild(text);
                     text.updateText();
-                    let line = parseInt(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                    let row = i % (parseInt(2048 / STITCH_SIZE));
+                    let line = ~~(i * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    let row = i % (~~(2048 / STITCH_SIZE));
                     rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                     app.current.renderer.render(rect, spritesheet.current, false);
                     stitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -679,8 +734,8 @@ export default function Project() {
                     rect.endFill();
                     text.alpha = 0.4;
                     text.updateText();
-                    line = parseInt((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
-                    row = (i + colors.length) % (parseInt(2048 / STITCH_SIZE));
+                    line = ~~((i + colors.length) * (STITCH_SIZE + LINE_WIDTH) / 2048);
+                    row = (i + colors.length) % (~~(2048 / STITCH_SIZE));
                     rect.position.set(row * (STITCH_SIZE + LINE_WIDTH), line * (STITCH_SIZE + LINE_WIDTH));
                     app.current.renderer.render(rect, spritesheet.current, false);
                     unstitchedTextures.current[i] = new PIXI.Texture(spritesheet.current,
@@ -702,8 +757,8 @@ export default function Project() {
         };
         mousePressed = e.data.button;
         if (mousePressed == 0) {
-            var x = parseInt(pos.x / STITCH_SIZE);
-            var y = parseInt(pos.y / STITCH_SIZE);
+            var x = ~~(pos.x / STITCH_SIZE);
+            var y = ~~(pos.y / STITCH_SIZE);
             if (x < stitches[0].length && y < stitches.length && x >= 0 && y >= 0)
                 switch (settings.current.cursorMode) {
                     case cursorModes.STITCH:
@@ -735,8 +790,8 @@ export default function Project() {
             x: e.data.global.x / scale - posX,
             y: e.data.global.y / scale - posY
         }
-        var x = parseInt(pos.x / STITCH_SIZE);
-        var y = parseInt(pos.y / STITCH_SIZE);
+        var x = ~~(pos.x / STITCH_SIZE);
+        var y = ~~(pos.y / STITCH_SIZE);
         if (x < stitches[0].length && y < stitches.length && x >= 0 && y >= 0) {
             if (mousePressed == 0) {
 
@@ -756,7 +811,10 @@ export default function Project() {
             setHoverColor.current(stitchArray[y][x].colorIndex);
         }
         if (mousePressed == -1 && settings.current.cursorMode == cursorModes.ZOOM) {
-            let bounds = zoomRectangle.current.AABB;
+            let bounds = {
+                width: zoomRectangle.current.width,
+                height: zoomRectangle.current.height
+            };
             let rectX = pos.x - bounds.width / 2;
             if (rectX < 0)
                 rectX = 0;
@@ -768,6 +826,7 @@ export default function Project() {
             else if (rectY > viewport.current.worldHeight - bounds.height)
                 rectY = viewport.current.worldHeight - bounds.height;
             zoomRectangle.current.position.set(rectX, rectY);
+            
         }
         
         
