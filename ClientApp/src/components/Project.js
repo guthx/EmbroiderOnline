@@ -260,7 +260,7 @@ export default function Project() {
                 (viewport.current.screenHeight / viewport.current.worldHeight) * stitches.length);
 
             miniature.current.renderable = false;
-
+            initialCull(viewport.current.getVisibleBounds());
             prevBounds = initalBounds(viewport.current.getVisibleBounds());
             PIXI.Ticker.shared.add(() => {
                 if (viewport.current.dirty) {
@@ -390,31 +390,33 @@ export default function Project() {
 
     function cull(bounds) {
         let x1 = ~~(bounds.x / STITCH_SIZE);
-        let x2 = x1 + ~~(bounds.width / STITCH_SIZE) + 2;
+        let x2 = ~~((bounds.x + bounds.width) / STITCH_SIZE);
         let y1 = ~~(bounds.y / STITCH_SIZE);
-        let y2 = y1 + ~~(bounds.height / STITCH_SIZE) + 2;
+        let y2 = ~~((bounds.y + bounds.height) / STITCH_SIZE);
         if (x1 < 0)
             x1 = 0;
         if (y1 < 0)
             y1 = 0;
-        if (x2 > stitches[0].length)
-            x2 = stitches[0].length;
-        if (y2 > stitches.length)
-            y2 = stitches.length;
+        if (x2 > stitches[0].length - 1)
+            x2 = stitches[0].length - 1;
+        if (y2 > stitches.length - 1)
+            y2 = stitches.length - 1;
 
-        for (let x = prevBounds.x1; x < prevBounds.x2; x++)
-            for (let y = prevBounds.y1; y < prevBounds.y2; y++)
-                spritesRef.current[y][x].visible = false;
+        let { stitchesRemove, stitchesAdd } = getStitches(prevBounds, { x1, y1, x2, y2 });
+        if (stitchesRemove.length > 0 || stitchesAdd.length > 0) {
+            for (let i = 0; i < stitchesRemove.length; i++)
+                spritesRef.current[stitchesRemove[i].y][stitchesRemove[i].x].visible = false;
+            for (let i = 0; i < stitchesAdd.length; i++)
+                spritesRef.current[stitchesAdd[i].y][stitchesAdd[i].x].visible = true;
+        }
+
         for (let x = prevBounds.x1 - prevBounds.x1 % 10; x < prevBounds.x2 - 10; x += 10) {
             linesX.current[x / 10].visible = false;
         }
         for (let y = prevBounds.y1 - prevBounds.y1 % 10; y < prevBounds.y2 - 10; y += 10) {
             linesY.current[y / 10].visible = false;
         }
-
-        for (let x = x1; x < x2; x++)
-            for (let y = y1; y < y2; y++)
-                spritesRef.current[y][x].visible = true;
+        
         for (let x = x1 - x1 % 10; x < x2 - 10; x += 10) {
             linesX.current[x / 10].visible = true;
         }
@@ -422,6 +424,77 @@ export default function Project() {
             linesY.current[y / 10].visible = true;
         }
         prevBounds = { x1, x2, y1, y2 };
+    }
+
+    function getStitches(rect1, rect2) {
+        let stitchesAdd = [];
+        let stitchesRemove = [];
+
+        if (rect1.x1 < rect2.x1) {
+            for (let x = rect1.x1; x < rect2.x1; x++) {
+                for (let y = rect1.y1; y <= rect1.y2; y++) {
+                    stitchesRemove.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.x1 > rect2.x1) {
+            for (let x = rect2.x1; x < rect1.x1; x++) {
+                for (let y = rect2.y1; y <= rect2.y2; y++) {
+                    stitchesAdd.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.x2 < rect2.x2) {
+            for (let x = rect1.x2 + 1; x <= rect2.x2; x++) {
+                for (let y = rect2.y1; y <= rect2.y2; y++) {
+                    stitchesAdd.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.x2 > rect2.x2) {
+            for (let x = rect2.x2 + 1; x <= rect1.x2; x++) {
+                for (let y = rect1.y1; y <= rect1.y2; y++) {
+                    stitchesRemove.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.y1 < rect2.y1) {
+            for (let x = rect1.x1; x <= rect1.x2; x++) {
+                for (let y = rect1.y1; y < rect2.y1; y++) {
+                    stitchesRemove.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.y1 > rect2.y1) {
+            for (let x = rect2.x1; x <= rect2.x2; x++) {
+                for (let y = rect2.y1; y < rect1.y1; y++) {
+                    stitchesAdd.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.y2 < rect2.y2) {
+            for (let x = rect2.x1; x <= rect2.x2; x++) {
+                for (let y = rect1.y2 + 1; y <= rect2.y2; y++) {
+                    stitchesAdd.push({ x, y });
+                }
+            }
+        }
+
+        if (rect1.y2 > rect2.y2) {
+            for (let x = rect1.x1; x <= rect1.x2; x++) {
+                for (let y = rect2.y2 + 1; y <= rect1.y2; y++) {
+                    stitchesRemove.push({ x, y });
+                }
+            }
+        }
+
+        return { stitchesRemove, stitchesAdd };
     }
 
     function initalBounds(bounds) {
@@ -438,6 +511,24 @@ export default function Project() {
         if (y2 > stitches.length)
             y2 = stitches.length;
         return { x1, x2, y1, y2 };
+    }
+
+    function initialCull(bounds) {
+        let x1 = ~~(bounds.x / STITCH_SIZE);
+        let x2 = ~~((bounds.x + bounds.width) / STITCH_SIZE);
+        let y1 = ~~(bounds.y / STITCH_SIZE);
+        let y2 = ~~((bounds.y + bounds.height) / STITCH_SIZE);
+        if (x1 < 0)
+            x1 = 0;
+        if (y1 < 0)
+            y1 = 0;
+        if (x2 > stitches[0].length - 1)
+            x2 = stitches[0].length - 1;
+        if (y2 > stitches.length - 1)
+            y2 = stitches.length - 1;
+        for (let x = x1; x <= x2; x++)
+            for (let y = y1; y <= y2; y++)
+                spritesRef.current[y][x].visible = true;
     }
 
     function handleResize(e) {
@@ -808,30 +899,30 @@ export default function Project() {
 
 
             }
-            
-        }
-        if (mousePressed == -1) {
-            if (settings.current.cursorMode == cursorModes.ZOOM) {
-                let bounds = {
-                    width: zoomRectangle.current.width,
-                    height: zoomRectangle.current.height
-                };
-                let rectX = pos.x - bounds.width / 2;
-                if (rectX < 0)
-                    rectX = 0;
-                else if (rectX > viewport.current.worldWidth - bounds.width)
-                    rectX = viewport.current.worldWidth - bounds.width;
-                let rectY = pos.y - bounds.height / 2;
-                if (rectY < 0)
-                    rectY = 0;
-                else if (rectY > viewport.current.worldHeight - bounds.height)
-                    rectY = viewport.current.worldHeight - bounds.height;
-                zoomRectangle.current.position.set(rectX, rectY);
+            if (mousePressed == -1) {
+                if (settings.current.cursorMode == cursorModes.ZOOM) {
+                    let bounds = {
+                        width: zoomRectangle.current.width,
+                        height: zoomRectangle.current.height
+                    };
+                    let rectX = pos.x - bounds.width / 2;
+                    if (rectX < 0)
+                        rectX = 0;
+                    else if (rectX > viewport.current.worldWidth - bounds.width)
+                        rectX = viewport.current.worldWidth - bounds.width;
+                    let rectY = pos.y - bounds.height / 2;
+                    if (rectY < 0)
+                        rectY = 0;
+                    else if (rectY > viewport.current.worldHeight - bounds.height)
+                        rectY = viewport.current.worldHeight - bounds.height;
+                    zoomRectangle.current.position.set(rectX, rectY);
+                }
+                else {
+                    setHoverColor.current(stitchArray[y][x].colorIndex);
+                }
             }
-            else {
-                setHoverColor.current(stitchArray[y][x].colorIndex);
-            }    
         }
+        
         
         
     }
