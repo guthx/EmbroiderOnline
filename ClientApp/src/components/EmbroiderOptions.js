@@ -1,59 +1,13 @@
 ﻿import React, { useState } from 'react';
 import { useEffect } from 'react';
-import { tabType } from './EmbroiderMain'
 import InfoIcon from '@material-ui/icons/Info';
-import { Dialog, DialogTitle, Tooltip } from '@material-ui/core';
+import { Tooltip } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
 import ArrowRightIcon from '@material-ui/icons/ArrowRight';
 import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 import Collapse from '@material-ui/core/Collapse';
-import { authService } from '../AuthService';
 import CreateProject from './CreateProject';
-
-const quantizerTypes = {
-    Octree: "Octree",
-    KMeans: "KMeans",
-    MedianCut: "MedianCut",
-    Popularity: "Popularity",
-    SimplePopularity: "SimplePopularity",
-    ModifiedMedianCut: "ModifiedMedianCut"
-}
-
-const dithererTypes = {
-    Atkinson: "Atkinson",
-    FloydSteinberg: "FloydSteinberg",
-    Pigeon: "Pigeon",
-    Sierra: "Sierra",
-    Stucki: "Stucki",
-    None: "None"
-}
-
-const colorComparerTypes = {
-    WeightedEuclideanDistance: "WeightedEuclideanDistance",
-    EuclideanDistance: "EuclideanDistance",
-    CMC: "CMC",
-    DE2000: "DE2000",
-    DE76: "DE76"
-}
-
-const colorSpaceTypes = {
-    Rgb: "Rgb",
-    Hsv: "Hsv",
-    Lab: "Lab",
-    Luv: "Luv",
-    Ycc: "Ycc"
-}
-
-
-const octreeModes = {
-    LeastImportant: "LeastImportant",
-    MostImportant: "MostImportant"
-}
-
-const sizeInputs = {
-    stitchSize: 0,
-    stitchWidth: 1
-}
+import { quantizerTypes, dithererTypes, colorComparerTypes, colorSpaceTypes, octreeModes, sizeInputs, tabType } from '../Enums';
 
 const tooltips = {
     stitchSize: "Defines how many pixels from original image will make up a single stitch",
@@ -150,7 +104,6 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             })
             .catch(ex => {
                 setLoading(false);
-                console.log(ex)
             });
     }
 
@@ -192,7 +145,6 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                 a.click();
             })
             .catch(ex => {
-                console.log(ex);
                 setLoadingSpreadsheet(false);
             });
     }

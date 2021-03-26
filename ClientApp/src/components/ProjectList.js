@@ -1,9 +1,9 @@
 ﻿import React, { useState } from 'react'
 import { useEffect } from 'react';
 import { authService } from '../AuthService';
-import { Link, withRouter } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import './ProjectList.css';
-import { Icon, InlineIcon } from '@iconify/react';
+import { Icon } from '@iconify/react';
 import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
 
 export default function ProjectList() {
@@ -11,9 +11,11 @@ export default function ProjectList() {
     const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
 
     useEffect(() => {
-        authService.currentUser.subscribe(u => {
+        let sub = authService.currentUser.subscribe(u => {
             setCurrentUser(u);
         });
+
+        return () => sub.unsubscribe();
     }, [])
 
     useEffect(() => {
@@ -26,7 +28,7 @@ export default function ProjectList() {
             })
                 .then(res => res.json())
                 .then(projects => setProjects(projects))
-                .catch(ex => console.log(ex));
+                .catch(ex => { });
         }   
     }, [currentUser]);
 

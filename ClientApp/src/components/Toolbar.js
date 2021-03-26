@@ -12,7 +12,7 @@ import { CompactPicker } from 'react-color';
 import { Tooltip } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
 import eyeSolid from '@iconify-icons/clarity/eye-solid';
-
+import { cursorModes, colorModes } from '../Enums';
 
 const tooltips = {
     pan: "Pan around the image",
@@ -29,10 +29,8 @@ export default function Toolbar({
     settingsRef,
     setSelectedColorRef,
     setHoverColorRef,
-    redrawCanvas,
     setPrevCursorModeRef,
     zoomOut,
-    setCanvasCursor,
     colors,
     setStitchCountsRef,
     updateStitchCountsRef,
@@ -75,19 +73,16 @@ export default function Toolbar({
         else
             switch (cursorMode) {
                 case cursorModes.ZOOM:
-                    // setCanvasCursor('zoom-in');
                     enablePan(false);
                     zoomOut();
                     break;
                 case cursorModes.PAN:
-                    //   setCanvasCursor('grab');
                     enablePan(true);
                     clearZoomRectangle();
                     break;
                 default:
                     enablePan(false);
                     clearZoomRectangle();
-                    //   setCanvasCursor('auto');
                     break;
             }
     }, [cursorMode]);

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Route, BrowserRouter as Router, Switch } from 'react-router-dom';
-import { Collapse, Nav, Navbar, NavbarBrand, NavbarToggler, DropdownMenu, NavLink, Dropdown, DropdownToggle, DropdownItem } from 'reactstrap';
 import { authService } from '../AuthService';
 import { Home } from './Home';
 import './NavMenu.css';
@@ -21,9 +20,11 @@ export default function NavMenu() {
             setLoginMenuOpen(false);
     }, [registerMenuOpen])
     useEffect(() => {
-        authService.currentUser.subscribe(user => setCurrentUser(user));
+        let sub = authService.currentUser.subscribe(user => setCurrentUser(user));
+
+        return () => sub.unsubscribe();
     }, []);
-    console.log(currentUser);
+
     return (
         <Router>
             <header>

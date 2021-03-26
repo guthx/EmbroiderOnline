@@ -1,11 +1,6 @@
 ﻿import React from 'react';
-import { useEffect } from 'react';
-import { useState } from 'react';
-import ImageMapper from 'react-img-mapper';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 function ImagePreviewZoom({ url, previewImageSize, zoom, setZoom }) {
-    console.log(previewImageSize);
     if (previewImageSize.width == 0)
         return null;
     return (

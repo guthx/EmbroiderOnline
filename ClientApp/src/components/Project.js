@@ -3,30 +3,14 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { authService } from '../AuthService';
 import './Project.css';
-import StitchCanvas from './StitchCanvas';
-import Toolbar from './Test';
+import Toolbar from './Toolbar';
 import * as signalR from '@microsoft/signalr';
-import { Color } from 'p5';
 import Spinner from './Spinner';
 import { Icon, InlineIcon } from '@iconify/react';
 import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import * as Cull from 'pixi-cull';
-import { BitmapFont, Geometry, GraphicsGeometry } from 'pixi.js';
-
-export const cursorModes = {
-    SELECT: 0,
-    PAN: 1,
-    ZOOM: 2,
-    STITCH: 3,
-    ERASE: 4,
-};
-
-export const colorModes = {
-    TRANSPARENT_TO_OPAQUE: 0,
-    OPAQUE_TO_COLOR: 1,
-}
+import { cursorModes, colorModes } from '../Enums';
 
 const STITCH_SIZE = 122;
 const LINE_WIDTH = 6;
@@ -51,9 +35,11 @@ export default function Project() {
     const [projectAlreadyOpen, setProjectAlreadyOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
     useEffect(() => {
-        authService.currentUser.subscribe(u => {
+        let sub = authService.currentUser.subscribe(u => {
             setCurrentUser(u);
         });
+
+        return () => sub.unsubscribe();
     }, [])
 
     const spritesRef = useRef();

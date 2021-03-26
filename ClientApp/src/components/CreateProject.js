@@ -16,9 +16,11 @@ export default function CreateProject({ guid }) {
     const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
 
     useEffect(() => {
-        authService.currentUser.subscribe(u => {
+        let sub = authService.currentUser.subscribe(u => {
             setCurrentUser(u);
         });
+
+        return () => sub.unsubscribe();
     }, [])
 
     const styles = (theme) => ({
@@ -52,7 +54,7 @@ export default function CreateProject({ guid }) {
         );
     });
 
-    const InfoTooltip = withStyles((theme) => ({
+    const InfoTooltip = withStyles(() => ({
         tooltip: {
             backgroundColor: '#2e2e2e',
             color: 'white',
@@ -84,7 +86,7 @@ export default function CreateProject({ guid }) {
                 if (text)
                     setProjectWarning(text);
             })
-            .catch(ex => console.log(ex));
+            .catch(ex => { });
     }
 
     return (

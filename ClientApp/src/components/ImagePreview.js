@@ -1,8 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { useEffect } from 'react';
 import { tabType } from './EmbroiderMain'
-import ImageMapper from 'react-img-mapper'
 import ImagePreviewZoom from './ImagePreviewZoom';
+import Spinner from './Spinner';
 
 function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTab, setImageSize, summary }) {
     const [zoom, setZoom] = useState(false);
@@ -12,7 +12,6 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
     
 
     const SummaryContent = () => {
-        console.log(summary);
         if (summary == null)
             return null;
         return (
@@ -46,7 +45,7 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
             );
     }
 
-    const imageWindowContent = () => {
+    const ImageWindowContent = () => {
         switch (selectedTab) {
             case tabType.IMAGE:
                 return (
@@ -61,7 +60,7 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
             case tabType.PREVIEW:
                 if (loading)
                     return (
-                        <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                        <Spinner />
                         )
                 if (previewImage == null)
                     return null;
@@ -88,8 +87,6 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
         if (previewImage != null)
             setPreviewImageUrl(URL.createObjectURL(previewImage));
     }, [previewImage])
-
-    var cursorX = 0, cursorY = 0;
 
     return (
         <div className={'image-preview'}>
@@ -120,7 +117,7 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
                 </div>
             </div>
             <div className={'image-window'}>
-                {imageWindowContent()}
+                <ImageWindowContent />
             </div>
             <ImagePreviewZoom
                 url={previewImageUrl}
