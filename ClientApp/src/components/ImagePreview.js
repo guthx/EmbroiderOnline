@@ -10,7 +10,7 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
     const [previewImageUrl, setPreviewImageUrl] = useState("");
     const [previewImageSize, setPreviewImageSize] = useState({ height: 0, width: 0 });
     
-
+    console.log('rerender');
     const SummaryContent = () => {
         if (summary == null)
             return null;
@@ -117,7 +117,7 @@ function ImagePreview({ image, previewImage, loading, selectedTab, setSelectedTa
                 </div>
             </div>
             <div className={'image-window'}>
-                <ImageWindowContent />
+                {ImageWindowContent()}
             </div>
             <ImagePreviewZoom
                 url={previewImageUrl}

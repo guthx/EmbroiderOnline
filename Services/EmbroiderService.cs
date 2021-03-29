@@ -44,7 +44,7 @@ namespace EmroiderOnline.Services
             var image = bitmap.ToImage<Rgb, double>();
             var embroider = new Embroider.Embroider(image);
             _embroiders.AddOrUpdate(id, embroider, (key, val) => embroider);
-            var timer = new Timer(300000);
+            var timer = new Timer(30000);
             timer.Elapsed += (obj, args) =>
             {
                 _embroiders.Remove(id, out _);
@@ -63,9 +63,9 @@ namespace EmroiderOnline.Services
             if(_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
             {
                 setEmbroiderOptions(embroider, request);
+                resetDeletionTimer(Guid.Parse(request.Guid));
                 return embroider.GenerateImage();
             }
-            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -75,9 +75,9 @@ namespace EmroiderOnline.Services
             if (_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
             {
                 setEmbroiderOptions(embroider, request);
+                resetDeletionTimer(Guid.Parse(request.Guid));
                 return embroider.GenerateExcelSpreadsheet();
             }
-            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -86,9 +86,9 @@ namespace EmroiderOnline.Services
             Embroider.Embroider embroider;
             if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
             {
+                resetDeletionTimer(Guid.Parse(guid));
                 return embroider.GetSummary();
             }
-            resetDeletionTimer(Guid.Parse(guid));
             return null;
         }
         public enum CreateProjectResult
@@ -112,10 +112,10 @@ namespace EmroiderOnline.Services
                 var project = new Project(name, stitchMap, image);
 
                 _users.UpdateOne(u => u.Id == userId, Builders<User>.Update.AddToSet(u => u.Projects, project));
+                resetDeletionTimer(Guid.Parse(guid));
                 return CreateProjectResult.Created;
 
             }
-            resetDeletionTimer(Guid.Parse(guid));
             return CreateProjectResult.NoImage;
         }
 

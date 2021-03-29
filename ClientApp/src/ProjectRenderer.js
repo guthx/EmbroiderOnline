@@ -160,7 +160,8 @@ export default class ProjectRenderer {
         });
         this.viewport.interactive = true;
 
-        window.addEventListener('resize', e => this.handleResize(e));
+        this.handleResize = this.handleResize.bind(this);
+        window.addEventListener('resize', this.handleResize);
 
     }
 
