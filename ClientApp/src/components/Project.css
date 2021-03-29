@@ -54,6 +54,7 @@
     grid-template-rows: 40px auto;
     position: relative;
     box-shadow: 2px 2px 3px 1px grey;
+    grid-column: 2;
 }
 
 .guide-horizontal {

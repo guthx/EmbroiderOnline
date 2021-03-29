@@ -1,9 +1,8 @@
 ﻿import React, { useEffect, useRef } from 'react'
 import { useState } from 'react';
-import { colorModes, cursorModes } from './Project';
 import ZoomInIcon from '@material-ui/icons/ZoomIn';
 import panIcon from '@iconify-icons/grommet-icons/pan';
-import { Icon, InlineIcon } from '@iconify/react';
+import { Icon } from '@iconify/react';
 import eraserSolid from '@iconify-icons/clarity/eraser-solid';
 import lockSolid from '@iconify-icons/clarity/lock-solid';
 import settingsSolid from '@iconify-icons/clarity/settings-solid';
@@ -30,15 +29,10 @@ export default function Toolbar({
     setSelectedColorRef,
     setHoverColorRef,
     setPrevCursorModeRef,
-    zoomOut,
     colors,
     setStitchCountsRef,
     updateStitchCountsRef,
-    generateTextures,
-    enablePan,
-    clearZoomRectangle,
-    openMiniature,
-    setMiniaturePos,
+    renderer
 }) {
     const [cursorMode, setCursorMode] = useState(cursorModes.PAN);
     const [selectedColor, setSelectedColor] = useState(null);
@@ -73,16 +67,16 @@ export default function Toolbar({
         else
             switch (cursorMode) {
                 case cursorModes.ZOOM:
-                    enablePan(false);
-                    zoomOut();
+                    renderer.enablePan(false);
+                    renderer.zoomOut();
                     break;
                 case cursorModes.PAN:
-                    enablePan(true);
-                    clearZoomRectangle();
+                    renderer.enablePan(true);
+                    renderer.clearZoomRectangle();
                     break;
                 default:
-                    enablePan(false);
-                    clearZoomRectangle();
+                    renderer.enablePan(false);
+                    renderer.clearZoomRectangle();
                     break;
             }
     }, [cursorMode]);
@@ -98,16 +92,16 @@ export default function Toolbar({
         if (isInitialMount.current)
             isInitialMount.current--;
         else
-            generateTextures();
+            renderer.generateTextures(colorMode, colorLock, selectedColor, customColor);
     }, [colorLock, colorMode, customColor]);
     useEffect(() => {
         if (isInitialMount.current)
             isInitialMount.current--;
         else {
             if (miniatureOpen)
-                openMiniature(true);
+                renderer.openMiniature(true);
             else
-                openMiniature(false);
+                renderer.openMiniature(false);
         }   
     }, [miniatureOpen])
 
@@ -190,7 +184,7 @@ export default function Toolbar({
         setMiniatureOpen(!miniatureOpen);
     }
     function handleSetMiniaturePosition(pos) {
-        setMiniaturePos(pos);
+        renderer.setMiniaturePos(pos);
         setMiniaturePosition(pos);
     }
 

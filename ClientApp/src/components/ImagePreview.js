@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useEffect } from 'react';
-import { tabType } from './EmbroiderMain'
+import { tabType } from '../Enums';
 import ImagePreviewZoom from './ImagePreviewZoom';
 import Spinner from './Spinner';
 
