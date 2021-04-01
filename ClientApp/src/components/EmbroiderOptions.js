@@ -202,6 +202,11 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
         setPresets([...presets, newPreset]);
     }
 
+    const deletePreset = () => {
+        setPresets(presets.filter((p, i) => i != selectedPreset));
+        setSelectedPreset(null);
+    }
+
     const OptionTooltip = withStyles((theme) => ({
         tooltip: {
             backgroundColor: '#2e2e2e',
@@ -564,6 +569,13 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                             disabled={presetName.length == 0}
                         >
                             Save preset
+                        </button>
+                        <button type="button"
+                            disabled={selectedPreset == null}
+                            onClick={() => {
+                                deletePreset();
+                            }}>
+                            Delete preset
                         </button>
                     </div>
                 </div>

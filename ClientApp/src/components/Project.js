@@ -10,6 +10,13 @@ import { Icon } from '@iconify/react';
 import warningStandardSolid from '@iconify-icons/clarity/warning-standard-solid';
 import { cursorModes, colorModes } from '../Enums';
 import ProjectRenderer from '../ProjectRenderer';
+import { Select } from '@material-ui/core';
+
+const actionTypes = {
+    ACTION: 0,
+    UNDO: 1,
+    REDO: 2
+};
 
 const STITCH_SIZE = 122;
 const LINE_WIDTH = 6;
@@ -46,13 +53,18 @@ export default function Project() {
     const setPrevCursorMode = useRef();
     const setStitchCounts = useRef();
     const updateStitchCounts = useRef();
+    const setUndoEnabled = useRef();
+    const setRedoEnabled = useRef();
+    const highlightActions = useRef();
 
     const guideHorizontal = useRef();
     const guideVertical = useRef();
 
-    let stitchArray = stitches;
     let mousePressed = -1;
     let selectedStitches = [];
+    let actionHistory = [];
+    let undoHistory = [];
+    let selectedArea = null;
 
     useEffect(() => {
         if (currentUser) {
@@ -128,10 +140,12 @@ export default function Project() {
             setLoaded(true);
             setReconnecting(false);
 
+            
+
             return () => {
                 if (renderer) {
                     renderer.dispose();
-                }
+                } 
             }
         }
     }, [colors]);
@@ -166,7 +180,23 @@ export default function Project() {
                 guideVertical.current.style.top = `-${STITCH_SIZE * 5 * e.lastViewport.scaleX}px`;
             });
             renderer.on('mousemove', mouseMove);
+            function shortcuts(e) {
+                e.preventDefault();
+                if (e.ctrlKey) {
+                    if (e.key == 'z') {                      
+                        undo();
+                    }
+                    else if (e.key == 'y') {
+                        redo();
+                    }
+                }
+            }
+            window.addEventListener('keydown', shortcuts);
             setGuideStyles();
+
+            return () => {
+                window.removeEventListener('keydown', shortcuts);
+            }
         }
             
     }, [loaded]);
@@ -187,11 +217,14 @@ export default function Project() {
                         eraseStitch(x, y);
                         break;
                     case cursorModes.SELECT:
-                        setSelectedColor.current(stitchArray[y][x].colorIndex);
+                        setSelectedColor.current(stitches[y][x].colorIndex);
                         break;
                     case cursorModes.ZOOM:
                         renderer.zoomIn(e.pos);
                         setPrevCursorMode.current();
+                        break;
+                    case cursorModes.AREA:
+                        startSelection(x, y);
                         break;
                 }
 
@@ -212,6 +245,9 @@ export default function Project() {
                     case cursorModes.ERASE:
                         eraseStitch(x, y);
                         break;
+                    case cursorModes.AREA:
+                        setSelection(x, y);
+                        break;
                 }
             }
             if (mousePressed == -1) {
@@ -219,7 +255,7 @@ export default function Project() {
                     renderer.setZoomRectanglePos(e.pos);
                 }
                 else {
-                    setHoverColor.current(stitchArray[y][x].colorIndex);
+                    setHoverColor.current(stitches[y][x].colorIndex);
                 }
             }
         }
@@ -235,19 +271,29 @@ export default function Project() {
     }
     
     const mouseUp = (e) => {
+        if (settings.current.cursorMode == cursorModes.AREA && mousePressed == 0)
+            highlightActions.current(true);
         mousePressed = -1;
+        updateStitches(actionTypes.ACTION);
+    }
+
+    const updateStitches = (actionType) => {
         if (selectedStitches.length > 0) {
-            hubConnection.invoke('UpdateStitches', selectedStitches);
+            let i, j, tempArray, size = 2000;
+            for (i = 0, j = selectedStitches.length; i < j; i += size) {
+                tempArray = selectedStitches.slice(i, i + size);
+                hubConnection.invoke('UpdateStitches', tempArray);
+            }  
             let changes = new Array(colors.length);
             for (let i = 0; i < selectedStitches.length; i++) {
                 if (settings.current.cursorMode == cursorModes.STITCH) {
-                    let index = stitchArray[selectedStitches[i].y][selectedStitches[i].x].colorIndex;
+                    let index = stitches[selectedStitches[i].y][selectedStitches[i].x].colorIndex;
                     if (!changes[index])
                         changes[index] = 1;
                     else
                         changes[index]++;
                 } else {
-                    let index = stitchArray[selectedStitches[i].y][selectedStitches[i].x].colorIndex;
+                    let index = stitches[selectedStitches[i].y][selectedStitches[i].x].colorIndex;
                     if (!changes[index])
                         changes[index] = -1;
                     else
@@ -255,6 +301,25 @@ export default function Project() {
                 }
             }
             updateStitchCounts.current(changes);
+            if (actionType == actionTypes.ACTION) {
+                if (actionHistory.push(selectedStitches) >= 50)
+                    actionHistory.shift();
+                undoHistory = [];
+                setUndoEnabled.current(true);
+                setRedoEnabled.current(false);
+            }
+            else if (actionType == actionTypes.UNDO) {
+                undoHistory.push(selectedStitches);
+                setRedoEnabled.current(true);
+                if (actionHistory.length == 0)
+                    setUndoEnabled.current(false);
+            }
+            else if (actionType == actionTypes.REDO) {
+                actionHistory.push(selectedStitches);
+                setUndoEnabled.current(true);
+                if (undoHistory.length == 0)
+                    setRedoEnabled.current(false);
+            }     
             selectedStitches = [];
         }
     }
@@ -278,12 +343,89 @@ export default function Project() {
             renderer.drawStitch(x, y);
         }
     }
+
+    const undo = () => {
+        let changes = actionHistory.pop();
+        if (changes) {
+            for (let i = 0; i < changes.length; i++) {
+                stitches[changes[i].y][changes[i].x].stitched = !stitches[changes[i].y][changes[i].x].stitched;
+                selectedStitches.push(changes[i]);
+                renderer.drawStitch(changes[i].x, changes[i].y);
+            }
+            updateStitches(actionTypes.UNDO);          
+        }
+    }
+
+    const redo = () => {
+        let changes = undoHistory.pop();
+        if (changes) {
+            for (let i = 0; i < changes.length; i++) {
+                stitches[changes[i].y][changes[i].x].stitched = !stitches[changes[i].y][changes[i].x].stitched;
+                selectedStitches.push(changes[i]);
+                renderer.drawStitch(changes[i].x, changes[i].y);
+            }
+            updateStitches(actionTypes.REDO);
+        }
+
+    }
+
+    const startSelection = (x, y) => {
+        selectedArea = {
+            x1: x,
+            x2: x,
+            y1: y,
+            y2: y
+        };
+        renderer.startSelection(x, y);
+        highlightActions.current(false);
+    }
+    const setSelection = (x, y) => {
+        selectedArea.x2 = x;
+        selectedArea.y2 = y;
+        renderer.setSelection(x, y);
+    }
+    const completeSelection = (change) => {
+        if (selectedArea) {
+            console.log(selectedArea);
+            let x1, x2, y1, y2;
+            if (selectedArea.x1 < selectedArea.x2) {
+                x1 = selectedArea.x1;
+                x2 = selectedArea.x2;
+            } else {
+                x1 = selectedArea.x2;
+                x2 = selectedArea.x1;
+            }
+            if (selectedArea.y1 < selectedArea.y2) {
+                y1 = selectedArea.y1;
+                y2 = selectedArea.y2;
+            } else {
+                y1 = selectedArea.y2;
+                y2 = selectedArea.y1;
+            }
+            selectedArea = null;
+            for (let x = x1; x <= x2; x++)
+                for (let y = y1; y <= y2; y++) {
+                    if (!settings.current.colorLock || settings.current.selectedColor == stitches[y][x].colorIndex) {
+                        if (change)
+                            completeStitch(x, y);
+                        else
+                            eraseStitch(x, y);
+                    }
+                }
+            updateStitches(actionTypes.ACTION);
+            removeSelection();
+        }
+    }
+    const removeSelection = () => {
+        selectedArea = null;
+        renderer.removeSelection();
+    }
     
     const GuideHorizontal = () => {
         if (stitches.length == 0)
             return null;
         var numbers = [];
-        for (let i = 0; i < stitchArray[0].length; i += 10) {
+        for (let i = 0; i < stitches[0].length; i += 10) {
             numbers.push(i);
         }
 
@@ -304,7 +446,7 @@ export default function Project() {
         if (stitches.length == 0)
             return null;
         var numbers = [];
-        for (let i = 0; i < stitchArray.length; i += 10) {
+        for (let i = 0; i < stitches.length; i += 10) {
             numbers.push(i);
         }
 
@@ -376,6 +518,13 @@ export default function Project() {
                             colors={colors}
                             setStitchCountsRef={setStitchCounts}
                             updateStitchCountsRef={updateStitchCounts}
+                            setUndoEnabledRef={setUndoEnabled}
+                            undo={undo}
+                            setRedoEnabledRef={setRedoEnabled}
+                            redo={redo}
+                            completeSelection={completeSelection}
+                            removeSelection={removeSelection}
+                            highlightActionsRef={highlightActions}
                             renderer={renderer}
                         />
                         :

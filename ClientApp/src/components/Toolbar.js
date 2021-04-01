@@ -11,6 +11,9 @@ import { CompactPicker } from 'react-color';
 import { Tooltip } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
 import eyeSolid from '@iconify-icons/clarity/eye-solid';
+import UndoIcon from '@material-ui/icons/Undo';
+import RedoIcon from '@material-ui/icons/Redo';
+import CropLandscapeIcon from '@material-ui/icons/CropLandscape';
 import { cursorModes, colorModes } from '../Enums';
 
 const tooltips = {
@@ -22,6 +25,9 @@ const tooltips = {
     settings: "Change color mode settings",
     palette: "Check palette of colors used in your project",
     miniature: "Show a miniature of your project displaying which part you are currently editing",
+    undo: "Undo previous action",
+    redo: "Redo",
+    selection: "Select an area to stitch or unstitch",
 }
 
 export default function Toolbar({
@@ -32,7 +38,14 @@ export default function Toolbar({
     colors,
     setStitchCountsRef,
     updateStitchCountsRef,
-    renderer
+    undo,
+    setUndoEnabledRef,
+    redo,
+    setRedoEnabledRef,
+    completeSelection,
+    removeSelection,
+    highlightActionsRef,
+    renderer,
 }) {
     const [cursorMode, setCursorMode] = useState(cursorModes.PAN);
     const [selectedColor, setSelectedColor] = useState(null);
@@ -45,10 +58,16 @@ export default function Toolbar({
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [customColor, setCustomColor] = useState('#ffffff');
     const [stitchCounts, setStitchCounts] = useState([]);
+    setStitchCountsRef.current = setStitchCounts;
     const [stitchCountMenu, setStitchCountMenu] = useState(false);
     const [miniatureOpen, setMiniatureOpen] = useState(false);
     const [miniaturePosition, setMiniaturePosition] = useState('top-left');
-    setStitchCountsRef.current = setStitchCounts;
+    const [undoEnabled, setUndoEnabled] = useState(false);
+    setUndoEnabledRef.current = setUndoEnabled;
+    const [redoEnabled, setRedoEnabled] = useState(false);
+    setRedoEnabledRef.current = setRedoEnabled;
+    const [highlightActions, setHighlightActions] = useState(false);
+    highlightActionsRef.current = setHighlightActions;
     const isInitialMount = useRef(3);
     useEffect(() => {
         settingsRef.current = {
@@ -64,7 +83,7 @@ export default function Toolbar({
     useEffect(() => {
         if (isInitialMount.current)
             isInitialMount.current--;
-        else
+        else {
             switch (cursorMode) {
                 case cursorModes.ZOOM:
                     renderer.enablePan(false);
@@ -79,6 +98,9 @@ export default function Toolbar({
                     renderer.clearZoomRectangle();
                     break;
             }
+            setHighlightActions(false);
+        }
+            
     }, [cursorMode]);
     
     useEffect(() => {
@@ -129,18 +151,25 @@ export default function Toolbar({
 
     function handlePanMode(e) {
         setCursorMode(cursorModes.PAN);
+        removeSelection();
     }
     function handleZoomMode(e) {
         if (cursorMode != cursorModes.ZOOM) {
             setPrevCursorMode(cursorMode);
             setCursorMode(cursorModes.ZOOM);
         }
+        removeSelection();
     }
     function handleStitchMode(e) {
         setCursorMode(cursorModes.STITCH);
+        completeSelection(true);
     }
     function handleEraseMode(e) {
         setCursorMode(cursorModes.ERASE);
+        completeSelection(false);
+    }
+    function handleAreaMode(e) {
+        setCursorMode(cursorModes.AREA);
     }
     function handleColorLock(e) {
         if (cursorMode == cursorModes.SELECT) {
@@ -187,6 +216,12 @@ export default function Toolbar({
         renderer.setMiniaturePos(pos);
         setMiniaturePosition(pos);
     }
+    function handleUndo(e) {
+        undo();
+    }
+    function handleRedo(e) {
+        redo();
+    }
 
     const OptionTooltip = withStyles((theme) => ({
         tooltip: {
@@ -227,7 +262,7 @@ export default function Toolbar({
                 <div className={'toolbar-item'}>
                     <OptionTooltip enterDelay={600} title={tooltips.stitch} placement="right" className={'tool-tip'}>
                     <div
-                        className={`icon ${cursorMode == cursorModes.STITCH ? 'selected' : ''}`}
+                            className={`icon ${cursorMode == cursorModes.STITCH ? 'selected' : ''} ${highlightActions ? 'highlighted' : ''}`}
                         onClick={handleStitchMode} >
                         <svg viewBox="0 0 128 128" width="1em" height="1em" xmlns="http://www.w3.org/2000/svg" class="iconify icon:noto:sewing-needle" preserveAspectRatio="xMidYMid meet">
                             <g>
@@ -246,10 +281,19 @@ export default function Toolbar({
                 </div>
                 <div className={'toolbar-item'}>
                     <OptionTooltip enterDelay={600} title={tooltips.erase} placement="right" className={'tool-tip'}>
-                    <div
-                        className={`icon ${cursorMode == cursorModes.ERASE ? 'selected' : ''}`}
+                        <div
+                            className={`icon ${cursorMode == cursorModes.ERASE ? 'selected' : ''} ${highlightActions ? 'highlighted' : ''}`}
                         onClick={handleEraseMode}>
                         <Icon icon={eraserSolid} />
+                        </div>
+                    </OptionTooltip>
+                </div>
+                <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.selection} placement="right" className={'tool-tip'}>
+                        <div
+                            className={`icon ${cursorMode == cursorModes.AREA ? 'selected' : ''}`}
+                            onClick={handleAreaMode}>
+                            <CropLandscapeIcon fontSize='inherit' />
                         </div>
                     </OptionTooltip>
                 </div>
@@ -425,6 +469,28 @@ export default function Toolbar({
                             onClick={handleMiniatureOpen}
                         >
                             <Icon icon={eyeSolid} />
+                        </div>
+                    </OptionTooltip>
+                </div>
+            </div>
+            <div className={'toolbar-group'}>
+                <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.undo} placement="right" className={'tool-tip'}>
+                        <div
+                            className={`icon ${undoEnabled ? '' : 'disabled'}`}
+                            onClick={handleUndo}
+                        >
+                            <UndoIcon fontSize='inherit' />
+                        </div>
+                    </OptionTooltip>
+                </div>
+                <div className={'toolbar-item'}>
+                    <OptionTooltip enterDelay={600} title={tooltips.redo} placement="right" className={'tool-tip'}>
+                        <div
+                            className={`icon ${redoEnabled ? '' : 'disabled'}`}
+                            onClick={handleRedo}
+                        >
+                            <RedoIcon fontSize='inherit' />
                         </div>
                     </OptionTooltip>
                 </div>

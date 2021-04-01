@@ -4,6 +4,7 @@
     ZOOM: 2,
     STITCH: 3,
     ERASE: 4,
+    AREA: 5,
 };
 
 export const colorModes = {

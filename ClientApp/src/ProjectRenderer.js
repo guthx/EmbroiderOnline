@@ -117,8 +117,13 @@ export default class ProjectRenderer {
         this.miniatureRect.lineStyle(2);
         this.miniatureRect.drawRect(0, 0, (this.viewport.screenWidth / this.viewport.worldWidth) * stitches[0].length,
             (this.viewport.screenHeight / this.viewport.worldHeight) * stitches.length);
-
         this.miniature.renderable = false;
+
+        this.selectionRect = this.viewport.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
+        this.selectionRect.tint = 0x000000;
+        this.selectionRect.alpha = 0.5;
+        this.selectionRect.renderable = false;
+
         this.initialCull(this.viewport.getVisibleBounds());
         this.prevBounds = this.initalBounds(this.viewport.getVisibleBounds());
         PIXI.Ticker.shared.add(() => {
@@ -146,6 +151,7 @@ export default class ProjectRenderer {
             );
         });
         this.viewport.on('zoomed-end', e => {
+            this.scale = this.viewport.lastViewport.scaleX;
             let width = ((this.viewport.screenWidth / this.viewport.worldWidth) * stitches[0].length) / this.scale;
             let height = ((this.viewport.screenHeight / this.viewport.worldHeight) * stitches.length) / this.scale;
             this.miniatureRect.clear();
@@ -554,6 +560,38 @@ export default class ProjectRenderer {
        // setGuideStyles();
     }
 
+    startSelection(x, y) {
+        this.selectionPos = { x, y };
+        this.selectionRect.position.set(x * this.stitchSize, y * this.stitchSize);
+        this.selectionRect.width = this.selectionRect.height = this.stitchSize;
+        this.selectionRect.renderable = true;
+    }
+    setSelection(x, y) {
+        let scaleX = 1, scaleY = 1;
+        this.selectionRect.width = (Math.abs(x - this.selectionPos.x) + 1) * (this.stitchSize);
+        this.selectionRect.height = (Math.abs(y - this.selectionPos.y) + 1) * (this.stitchSize);
+        if (x - this.selectionPos.x < 0) {
+            scaleX = -1;
+            this.selectionRect.position.x = (this.selectionPos.x + 1) * this.stitchSize;
+        }
+        else {
+            this.selectionRect.position.x = (this.selectionPos.x) * this.stitchSize;
+        }
+        if (y - this.selectionPos.y < 0) {
+            scaleY = -1;
+            this.selectionRect.position.y = (this.selectionPos.y + 1) * this.stitchSize;
+        }
+        else {
+            this.selectionRect.position.y = (this.selectionPos.y) * this.stitchSize;
+        }   
+        this.selectionRect.scale.x = Math.abs(this.selectionRect.scale.x) * scaleX;
+        this.selectionRect.scale.y = Math.abs(this.selectionRect.scale.y) * scaleY;
+    }
+    removeSelection() {
+        this.selectionRect.renderable = false;
+    }
+
+
     setZoomRectanglePos(pos) {
         let bounds = {
             width: this.zoomRectangle.width,
@@ -708,6 +746,8 @@ export default class ProjectRenderer {
         this.miniatureRect = null;
         this.miniature.destroy();
         this.miniature = null;
+        this.selectionRect.destroy();
+        this.selectionRect = null;
         for (let key in PIXI.utils.TextureCache) {
             PIXI.utils.TextureCache[key].destroy(true);
         }

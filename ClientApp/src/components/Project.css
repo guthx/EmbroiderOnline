@@ -159,6 +159,9 @@
         .toolbar-item .icon.selected svg {
             filter: invert(1);
         }
+        .toolbar-item .icon.highlighted {
+            background-color: #8a2be254;
+        }
 
 .settings {
     position: absolute;
@@ -296,4 +299,8 @@
     align-items: center;
     font-size: 32px;
     justify-content: center;
+}
+
+.icon .disabled {
+    color: gray;
 }
