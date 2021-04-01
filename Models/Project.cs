@@ -1,9 +1,10 @@
 ﻿using Embroider;
-using Emgu.CV;
-using Emgu.CV.Structure;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.Drawing.Imaging;
@@ -29,11 +30,11 @@ namespace EmroiderOnline.Models
         [BsonElement("finishedStitches")]
         public int FinishedStitches { get; set; }
 
-        public Project(string name, StitchMap map, Image<Rgb, double> image)
+        public Project(string name, StitchMap map, Image<Rgb24> image)
         {
             using (var stream = new MemoryStream())
             {
-                image.ToBitmap().Save(stream, ImageFormat.Jpeg);
+                image.Save(stream, new JpegEncoder());
                 PreviewImage = stream.ToArray();
             }
             var bf = new BinaryFormatter();

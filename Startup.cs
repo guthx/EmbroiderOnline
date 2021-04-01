@@ -84,7 +84,7 @@ namespace EmroiderOnline
             services.AddTransient<UserService>();
             services.AddTransient<ProjectController>();
             services.AddTransient<ProjectService>();
-            services.AddSingleton<IMongoClient>(new MongoClient("mongodb://localhost:27017"));
+            services.AddSingleton<IMongoClient>(new MongoClient(Configuration.GetConnectionString("Embroider")));
             services.AddSignalR().AddNewtonsoftJsonProtocol(options =>
             {
                 options.PayloadSerializerSettings.ContractResolver = new DefaultContractResolver

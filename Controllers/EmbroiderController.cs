@@ -1,5 +1,4 @@
-﻿using Emgu.CV;
-using EmroiderOnline.Models;
+﻿using EmroiderOnline.Models;
 using EmroiderOnline.Models.Requests;
 using EmroiderOnline.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -54,8 +53,9 @@ namespace EmroiderOnline.Controllers
                     return StatusCode(200);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -70,15 +70,15 @@ namespace EmroiderOnline.Controllers
                 var image = _embroiderService.GetPreviewImage(request);
                 if (image == null)
                     return StatusCode(400);
-                var bitmap = image.ToBitmap();
                 using (var stream = new MemoryStream())
                 {
-                    bitmap.Save(stream, ImageFormat.Png);
+                    image.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
                     return File(stream.ToArray(), "image/png");
                 }
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -95,8 +95,9 @@ namespace EmroiderOnline.Controllers
                 spreadsheet = null;
                 return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -111,8 +112,9 @@ namespace EmroiderOnline.Controllers
                     return StatusCode(400);
                 return new JsonResult(new SummaryResponse(summary));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }

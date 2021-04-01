@@ -7,8 +7,6 @@ using Embroider;
 using System.IO;
 using EmroiderOnline.Models;
 using System.Drawing;
-using Emgu.CV;
-using Emgu.CV.Structure;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
 using Embroider.Quantizers;
@@ -17,6 +15,8 @@ using OfficeOpenXml;
 using static Embroider.Enums;
 using System.Timers;
 using MongoDB.Driver;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp;
 
 namespace EmroiderOnline.Services
 {
@@ -40,11 +40,10 @@ namespace EmroiderOnline.Services
                 return false;
 
             var id = Guid.Parse(guid);
-            var bitmap = new Bitmap(file.OpenReadStream());
-            var image = bitmap.ToImage<Rgb, double>();
+            var image = SixLabors.ImageSharp.Image.Load<Rgb24>(file.OpenReadStream());
             var embroider = new Embroider.Embroider(image);
             _embroiders.AddOrUpdate(id, embroider, (key, val) => embroider);
-            var timer = new Timer(30000);
+            var timer = new Timer(600000);
             timer.Elapsed += (obj, args) =>
             {
                 _embroiders.Remove(id, out _);
@@ -57,7 +56,7 @@ namespace EmroiderOnline.Services
             return true;
         }
 
-        public Image<Rgb, double> GetPreviewImage(OptionsRequest request)
+        public Image<Rgb24> GetPreviewImage(OptionsRequest request)
         {
             Embroider.Embroider embroider;
             if(_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))

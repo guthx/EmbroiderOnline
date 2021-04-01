@@ -4,7 +4,6 @@ import { colorModes } from './Enums';
 
 export default class ProjectRenderer {
     constructor(stitches, colors, width, height, element, stitchSize, lineWidth, settings) {
-        console.log(width);
         this.stitches = stitches;
         this.colors = colors;
         this.stitchSize = stitchSize;
@@ -36,7 +35,6 @@ export default class ProjectRenderer {
         background.height = stitches.length * this.stitchSize;
 
         this.generateTextures(settings.colorMode, settings.colorLock, settings.selectedColor, settings.customColor);
-        console.log(this.stitchedTextures);
 
         this.sprites = new Array(stitches.length);
         let i = 0;
@@ -168,7 +166,6 @@ export default class ProjectRenderer {
 
 
     generateTextures(colorMode, colorLock, selectedColor, customColor) {
-        console.log(colorMode);
         if (!this.spritesheet) {
             let lineCount = Math.ceil((this.colors.length * 2 * (this.stitchSize + this.lineWidth)) / 2048);
             this.spritesheet = new PIXI.RenderTexture.create({ width: 2048, height: (this.stitchSize + this.lineWidth) * lineCount });

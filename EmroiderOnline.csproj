@@ -7,15 +7,13 @@
     <IsPackable>false</IsPackable>
     <SpaRoot>ClientApp\</SpaRoot>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
+    <UserSecretsId>b89d1926-6cb2-4c1d-8274-25ea0aa4d058</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
     <PackageReference Include="C5" Version="2.5.3" />
     <PackageReference Include="CsvHelper" Version="22.1.2" />
-    <PackageReference Include="Emgu.CV" Version="4.5.1.4349" />
-    <PackageReference Include="Emgu.CV.Bitmap" Version="4.5.1.4349" />
-    <PackageReference Include="Emgu.CV.runtime.windows" Version="4.5.1.4349" />
     <PackageReference Include="EPPlus" Version="5.5.4" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.12" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.11" />
@@ -27,6 +25,7 @@
     <PackageReference Include="MongoDB.Driver" Version="2.12.0" />
     <PackageReference Include="MongoDB.Driver.Core" Version="2.12.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.3" />
     <PackageReference Include="System.Drawing.Common" Version="5.0.1" />
     <PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.8.0" />
@@ -41,8 +40,14 @@
 
   <ItemGroup>
     <Reference Include="Embroider">
-      <HintPath>..\..\Embroider\Embroider\bin\Release\netcoreapp3.1\Embroider.dll</HintPath>
+      <HintPath>Embroider.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="dmc_lab2.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">

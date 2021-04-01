@@ -51,6 +51,15 @@ namespace EmroiderOnline.Services
             return inMemoryProject;
         }
 
+        public bool DeleteProject(string userId, string name)
+        {
+            var user = _users.Find(u => u.Id == userId).FirstOrDefault();
+            if (user == null)
+                return false;
+            var update = Builders<User>.Update.PullFilter(u => u.Projects, Builders<Project>.Filter.Eq(p => p.Name, name));
+            return _users.UpdateOne(u => u.Id == userId, update).IsAcknowledged;
+        }
+
         public bool UpdateStitches(string connectionId, Position[] stitches)
         {
             InMemoryProject project;

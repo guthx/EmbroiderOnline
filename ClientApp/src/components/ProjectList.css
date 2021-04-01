@@ -72,3 +72,27 @@
     background-color: #41c300;
     height: 100%;
 }
+
+.project-entry {
+    display: grid;
+    grid-template-columns: auto min-content;
+    grid-column-gap: 7px;
+}
+
+.delete-button {
+    align-self: center;
+    background-color: blueviolet;
+    color: white;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    border-radius: 3px;
+}
+
+    .delete-button:hover {
+        background-color: #41c300;
+        cursor: pointer;
+    }

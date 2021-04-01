@@ -6,6 +6,9 @@ import { withStyles } from '@material-ui/core/styles';
 import ArrowRightIcon from '@material-ui/icons/ArrowRight';
 import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 import Collapse from '@material-ui/core/Collapse';
+import { Icon, InlineIcon } from '@iconify/react';
+import angleLine from '@iconify-icons/clarity/angle-line';
+
 import CreateProject from './CreateProject';
 import { quantizerTypes, dithererTypes, colorComparerTypes, colorSpaceTypes, octreeModes, sizeInputs, tabType } from '../Enums';
 
@@ -44,11 +47,31 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     const [dithererStrength, setDithererStrength] = useState(10);
     const [dimmedInput, setDimmedInput] = useState(sizeInputs.stitchWidth);
     const [advancedTab, setAdvancedTab] = useState(false);
-
+    const [presetsTab, setPresetsTab] = useState(true);
+    const [presets, setPresets] = useState([]);
+    const [presetName, setPresetName] = useState("");
+    const [selectedPreset, setSelectedPreset] = useState(null);
 
     useEffect(() => {
         setStitchWidth(parseInt(imageSize.width / stitchSize));
-    }, [imageSize])
+    }, [imageSize]);
+
+    useEffect(() => {
+        if (selectedPreset != null) {
+            let preset = presets[selectedPreset];
+            setStitchSize(preset.stitchSize);
+            setMaxColors(preset.maxColors);
+            setOutputStitchSize(preset.outputStitchSize);
+            setNet(preset.net);
+            setQuantizerType(preset.quantizerType);
+            setOctreeMode(preset.octreeMode);
+            setStitchWidth(preset.stitchWidth);
+            setDithererType(preset.dithererType);
+            setColorSpace(preset.colorSpace);
+            setColorComparer(preset.colorComparer);
+            setDithererStrength(preset.dithererStrength);
+        }
+    }, [selectedPreset]);
 
     const clampValue = (e, setValue) => {
         if (e.target.value == "") {
@@ -141,7 +164,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                 setLoadingSpreadsheet(false);
                 var a = document.createElement('a');
                 a.href = URL.createObjectURL(sheet);
-                a.download = imageName;
+                a.download = imageName.split('.')[0] + '.xlsx';
                 a.click();
             })
             .catch(ex => {
@@ -159,7 +182,24 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             .then(summary => {
                 setSummary(summary);
             })
-            .catch(ex => {})
+            .catch(ex => { })
+    }
+
+    const addPreset = () => {
+        let newPreset = {
+            name: presetName,
+            stitchSize,
+            maxColors,
+            outputStitchSize,
+            stitchWidth,
+            net,
+            quantizerType,
+            dithererType,
+            dithererStrength,
+            colorSpace,
+            colorComparer
+        };
+        setPresets([...presets, newPreset]);
     }
 
     const OptionTooltip = withStyles((theme) => ({
@@ -172,278 +212,363 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     }))(Tooltip);
 
     return (
-        <div className={'options'}>
-            <div className={'title'}>
-                Settings
+        <>
+            <div className={'options'}>
+                <div className={'title'}>
+                    Settings
             </div>
-            <div className={'options-list'}>
-                <div className={`option`}>
-                    <label for="stitchSize">
-                        Stitch size (px)
+                <div className={'options-list'}>
+                    <div className={`option`}>
+                        <label for="stitchSize">
+                            Stitch size (px)
                         <OptionTooltip title={tooltips.stitchSize} placement="left" className={'tool-tip'}>
-                            <InfoIcon fontSize={"small"} />
-                        </OptionTooltip>
-                    </label>
-                    <input
-                        id="stitchSize"
-                        type="number"
-                        className={`${dimmedInput == sizeInputs.stitchSize ? "dimmed" : ""}`}
-                        value={stitchSize}
-                        onChange={e => {
-                            var val = parseInt(e.target.value);
-                            setStitchSize(val);
-                            setStitchWidth(parseInt(imageSize.width / val));
-                            setDimmedInput(sizeInputs.stitchWidth);
-                        }}
-                        onBlur={e => {
-                            if (e.target.value == "") {
-                                var val = parseInt(Math.ceil(imageSize.width / 500));
-                                setStitchSize(val);
-                                setStitchWidth(parseInt(imageSize.width / val));
-                            }
-                            else {
-                                var val = parseInt(e.target.value);
-                                var max = parseInt(imageSize.width / 5);
-                                var min = parseInt(Math.ceil(imageSize.width / 500));
-                                if (val > max)
-                                    val = max;
-                                else if (val < min)
-                                    val = min;
-                                setStitchSize(val);
-                                setStitchWidth(parseInt(imageSize.width / val));
-                            }
-                        }}
-                    />
-                </div>
-                <div className={`option`}>
-                    <label for="stitchWidth">
-                        Number of stitches (width)
-                        <OptionTooltip title={tooltips.stitchWidth} placement="left" className={'tool-tip'}>
-                            <InfoIcon fontSize={"small"} />
-                        </OptionTooltip>
-                    </label>
-                    <input
-                        id="stitchWidth"
-                        type="number"
-                        value={stitchWidth}
-                        className={`${dimmedInput == sizeInputs.stitchWidth ? "dimmed" : ""}`}
-                        onChange={e => {
-                            setStitchSize(0);
-                            setStitchWidth(parseInt(e.target.value));
-                            setDimmedInput(sizeInputs.stitchSize);
-                        }}
-                        onBlur={e => {
-                            if (e.target.value == "")
-                                setStitchWidth(100);
-                            else {
-                                var val = parseInt(e.target.value);
-                                var min = 5;
-                                var max = 500;
-                                if (val > max)
-                                    val = max;
-                                else if (val < min)
-                                    val = min;
-                                setStitchWidth(val);
-                            }
-                        }}
-                    />
-                </div>
-                <div className={'option'}>
-                    <label for="maxColors">
-                        Maximum number of colors
-                        <OptionTooltip title={tooltips.maxColors} placement="left" className={'tool-tip'}>
-                            <InfoIcon fontSize={"small"} />
-                        </OptionTooltip>
-                    </label>
-                    <input
-                        id="maxColors"
-                        type="number"
-                        value={maxColors}
-                        onChange={e => setMaxColors(parseInt(e.target.value))}
-                        onBlur={e => clampValue(e, setMaxColors)}
-                        min="2"
-                        max="200"
-                    />
-                </div>
-                <div className={'option'}>
-                    <label for="outputStitchSize">
-                        Stitch size in output image (px)
-                        <OptionTooltip title={tooltips.outputStitchSize} placement="left" className={'tool-tip'}>
-                            <InfoIcon fontSize={"small"} />
-                        </OptionTooltip>
-                    </label>
-                    <input
-                        type="number"
-                        value={outputStitchSize}
-                        onChange={e => setOutputStitchSize(parseInt(e.target.value))}
-                        onBlur={e => clampValue(e, setOutputStitchSize)}
-                        min="1"
-                        max="8"
-                    />
-                </div>
-                <div className={'option'}>
-                    <label for="net">
-                        Draw a net separating stitches
-                        <OptionTooltip title={tooltips.net} placement="left" className={'tool-tip'}>
-                            <InfoIcon fontSize={"small"} />
-                        </OptionTooltip>
-                    </label>
-                    <label class="switch">
-                        <input
-                            id="net"
-                            type="checkbox"
-                            value={net}
-                            onChange={e => setNet(e.target.checked)}
-                        />
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div
-                    onClick={e => setAdvancedTab(!advancedTab)}
-                    className={'advanced-tab-title'}>
-                    Advanced settings
-                    {
-                        !advancedTab ? <ArrowRightIcon /> : <ArrowDropDownIcon />
-                    }
-                </div>
-                <Collapse in={advancedTab}>
-                    <div className={'option'}>
-                        <label for="quantizerType">
-                            Color quantization algorithm
-                        <OptionTooltip title={tooltips.quantizerType} placement="left" className={'tool-tip'}>
                                 <InfoIcon fontSize={"small"} />
                             </OptionTooltip>
                         </label>
-                        <select
-                            id="quantizerType"
-                            value={quantizerType}
-                            onChange={e => setQuantizerType(e.target.value)}
-                        >
-                            <option value={quantizerTypes.Octree}>Octree</option>
-                            <option value={quantizerTypes.KMeans}>K-Means</option>
-                            <option value={quantizerTypes.MedianCut}>Median cut</option>
-                            <option value={quantizerTypes.ModifiedMedianCut}>Modified median cut</option>
-                            <option value={quantizerTypes.Popularity}>Popularity</option>
-                            <option value={quantizerTypes.SimplePopularity}>Simple popularity</option>
-                        </select>
+                        <input
+                            id="stitchSize"
+                            type="number"
+                            className={`${dimmedInput == sizeInputs.stitchSize ? "dimmed" : ""}`}
+                            value={stitchSize}
+                            onChange={e => {
+                                var val = parseInt(e.target.value);
+                                setStitchSize(val);
+                                setStitchWidth(parseInt(imageSize.width / val));
+                                setDimmedInput(sizeInputs.stitchWidth);
+                                setSelectedPreset(null);
+                            }}
+                            onBlur={e => {
+                                if (e.target.value == "") {
+                                    var val = parseInt(Math.ceil(imageSize.width / 500));
+                                    setStitchSize(val);
+                                    setStitchWidth(parseInt(imageSize.width / val));
+                                }
+                                else {
+                                    var val = parseInt(e.target.value);
+                                    var max = parseInt(imageSize.width / 5);
+                                    var min = parseInt(Math.ceil(imageSize.width / 500));
+                                    if (val > max)
+                                        val = max;
+                                    else if (val < min)
+                                        val = min;
+                                    setStitchSize(val);
+                                    setStitchWidth(parseInt(imageSize.width / val));
+                                }
+                            }}
+                        />
                     </div>
+                    <div className={`option`}>
+                        <label for="stitchWidth">
+                            Number of stitches (width)
+                        <OptionTooltip title={tooltips.stitchWidth} placement="left" className={'tool-tip'}>
+                                <InfoIcon fontSize={"small"} />
+                            </OptionTooltip>
+                        </label>
+                        <input
+                            id="stitchWidth"
+                            type="number"
+                            value={stitchWidth}
+                            className={`${dimmedInput == sizeInputs.stitchWidth ? "dimmed" : ""}`}
+                            onChange={e => {
+                                setStitchSize(0);
+                                setStitchWidth(parseInt(e.target.value));
+                                setDimmedInput(sizeInputs.stitchSize);
+                                setSelectedPreset(null);
+                            }}
+                            onBlur={e => {
+                                if (e.target.value == "")
+                                    setStitchWidth(100);
+                                else {
+                                    var val = parseInt(e.target.value);
+                                    var min = 5;
+                                    var max = 500;
+                                    if (val > max)
+                                        val = max;
+                                    else if (val < min)
+                                        val = min;
+                                    setStitchWidth(val);
+                                }
+                            }}
+                        />
+                    </div>
+                    <div className={'option'}>
+                        <label for="maxColors">
+                            Maximum number of colors
+                        <OptionTooltip title={tooltips.maxColors} placement="left" className={'tool-tip'}>
+                                <InfoIcon fontSize={"small"} />
+                            </OptionTooltip>
+                        </label>
+                        <input
+                            id="maxColors"
+                            type="number"
+                            value={maxColors}
+                            onChange={e => {
+                                setMaxColors(parseInt(e.target.value));
+                                setSelectedPreset(null);
+                            }}
+                            onBlur={e => clampValue(e, setMaxColors)}
+                            min="2"
+                            max="200"
+                        />
+                    </div>
+                    <div className={'option'}>
+                        <label for="outputStitchSize">
+                            Stitch size in output image (px)
+                        <OptionTooltip title={tooltips.outputStitchSize} placement="left" className={'tool-tip'}>
+                                <InfoIcon fontSize={"small"} />
+                            </OptionTooltip>
+                        </label>
+                        <input
+                            type="number"
+                            value={outputStitchSize}
+                            onChange={e => {
+                                setOutputStitchSize(parseInt(e.target.value));
+                                setSelectedPreset(null);
+                            }}
+                            onBlur={e => clampValue(e, setOutputStitchSize)}
+                            min="1"
+                            max="8"
+                        />
+                    </div>
+                    <div className={'option'}>
+                        <label for="net">
+                            Draw a net separating stitches
+                        <OptionTooltip title={tooltips.net} placement="left" className={'tool-tip'}>
+                                <InfoIcon fontSize={"small"} />
+                            </OptionTooltip>
+                        </label>
+                        <label class="switch">
+                            <input
+                                id="net"
+                                type="checkbox"
+                                value={net}
+                                onChange={e => {
+                                    setNet(e.target.checked);
+                                    setSelectedPreset(null);
+                                }}
+                            />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div
+                        onClick={e => setAdvancedTab(!advancedTab)}
+                        className={'advanced-tab-title'}>
+                        Advanced settings
                     {
-                        quantizerType == quantizerTypes.Octree &&
+                            !advancedTab ? <ArrowRightIcon /> : <ArrowDropDownIcon />
+                        }
+                    </div>
+                    <Collapse in={advancedTab}>
                         <div className={'option'}>
-                            <label for="octreeMode">
-                                Merge order for octee algorithm
-                            <OptionTooltip title={tooltips.octreeMode} placement="left" className={'tool-tip'}>
+                            <label for="quantizerType">
+                                Color quantization algorithm
+                        <OptionTooltip title={tooltips.quantizerType} placement="left" className={'tool-tip'}>
                                     <InfoIcon fontSize={"small"} />
                                 </OptionTooltip>
                             </label>
                             <select
-                                id="octreeMode"
-                                value={octreeMode}
-                                onChange={e => setOctreeMode(e.target.value)}
+                                id="quantizerType"
+                                value={quantizerType}
+                                onChange={e => {
+                                    setQuantizerType(e.target.value);
+                                    setSelectedPreset(null);
+                                }}
                             >
-                                <option value={octreeModes.LeastImportant}>Merge least popular colors first</option>
-                                <option value={octreeModes.MostImportant}>Merge most popular colors first</option>
+                                <option value={quantizerTypes.Octree}>Octree</option>
+                                <option value={quantizerTypes.KMeans}>K-Means</option>
+                                <option value={quantizerTypes.MedianCut}>Median cut</option>
+                                <option value={quantizerTypes.ModifiedMedianCut}>Modified median cut</option>
+                                <option value={quantizerTypes.Popularity}>Popularity</option>
+                                <option value={quantizerTypes.SimplePopularity}>Simple popularity</option>
                             </select>
                         </div>
-                    }
-                    <div className={'option'}>
-                        <label for="dithererType">
-                            Dithering algorithm
+                        {
+                            quantizerType == quantizerTypes.Octree &&
+                            <div className={'option'}>
+                                <label for="octreeMode">
+                                    Merge order for octee algorithm
+                            <OptionTooltip title={tooltips.octreeMode} placement="left" className={'tool-tip'}>
+                                        <InfoIcon fontSize={"small"} />
+                                    </OptionTooltip>
+                                </label>
+                                <select
+                                    id="octreeMode"
+                                    value={octreeMode}
+                                    onChange={e => {
+                                        setOctreeMode(e.target.value);
+                                        setSelectedPreset(null);
+                                    }}
+                                >
+                                    <option value={octreeModes.LeastImportant}>Merge least popular colors first</option>
+                                    <option value={octreeModes.MostImportant}>Merge most popular colors first</option>
+                                </select>
+                            </div>
+                        }
+                        <div className={'option'}>
+                            <label for="dithererType">
+                                Dithering algorithm
                         <OptionTooltip title={tooltips.dithererType} placement="left" className={'tool-tip'}>
-                                <InfoIcon fontSize={"small"} />
-                            </OptionTooltip>
-                        </label>
-                        <select
-                            id="dithererType"
-                            value={dithererType}
-                            onChange={e => setDithererType(e.target.value)}
-                        >
-                            <option value={dithererTypes.Atkinson}>Atkinson</option>
-                            <option value={dithererTypes.FloydSteinberg}>Floyd-Steinberg</option>
-                            <option value={dithererTypes.Sierra}>Sierra</option>
-                            <option value={dithererTypes.Stucki}>Stucki</option>
-                            <option value={dithererTypes.Pigeon}>Pigeon</option>
-                            <option value={dithererTypes.None}>None</option>
-                        </select>
-                    </div>
-                    <div className={'option'}>
-                        <label for="dithererStrength">
-                            Dithering strength
+                                    <InfoIcon fontSize={"small"} />
+                                </OptionTooltip>
+                            </label>
+                            <select
+                                id="dithererType"
+                                value={dithererType}
+                                onChange={e => {
+                                    setDithererType(e.target.value);
+                                    setSelectedPreset(null);
+                                }}
+                            >
+                                <option value={dithererTypes.Atkinson}>Atkinson</option>
+                                <option value={dithererTypes.FloydSteinberg}>Floyd-Steinberg</option>
+                                <option value={dithererTypes.Sierra}>Sierra</option>
+                                <option value={dithererTypes.Stucki}>Stucki</option>
+                                <option value={dithererTypes.Pigeon}>Pigeon</option>
+                                <option value={dithererTypes.None}>None</option>
+                            </select>
+                        </div>
+                        <div className={'option'}>
+                            <label for="dithererStrength">
+                                Dithering strength
                         <OptionTooltip title={tooltips.dithererStrength} placement="left" className={'tool-tip'}>
-                                <InfoIcon fontSize={"small"} />
-                            </OptionTooltip>
-                        </label>
-                        <input
-                            id="dithererStrength"
-                            type="number"
-                            value={dithererStrength}
-                            onChange={e => setDithererStrength(parseInt(e.target.value))}
-                            onBlur={e => clampValue(e, setDithererStrength)}
-                            min="0"
-                            max="255"
-                        />
-                        <input
-                            type="range"
-                            value={dithererStrength}
-                            onChange={e => setDithererStrength(parseInt(e.target.value))}
-                            onBlur={e => clampValue(e, setDithererStrength)}
-                            min="0"
-                            max="255" />
-                    </div>
-                    <div className={'option'}>
-                        <label for="colorComparer">
-                            Color comparison method
+                                    <InfoIcon fontSize={"small"} />
+                                </OptionTooltip>
+                            </label>
+                            <input
+                                id="dithererStrength"
+                                type="number"
+                                value={dithererStrength}
+                                onChange={e => {
+                                    setDithererStrength(parseInt(e.target.value));
+                                    setSelectedPreset(null);
+                                }}
+                                onBlur={e => clampValue(e, setDithererStrength)}
+                                min="0"
+                                max="255"
+                            />
+                            <input
+                                type="range"
+                                value={dithererStrength}
+                                onChange={e => {
+                                    setDithererStrength(parseInt(e.target.value));
+                                    setSelectedPreset(null);
+                                }}
+                                onBlur={e => clampValue(e, setDithererStrength)}
+                                min="0"
+                                max="255" />
+                        </div>
+                        <div className={'option'}>
+                            <label for="colorComparer">
+                                Color comparison method
                         <OptionTooltip title={tooltips.colorComparer} placement="left" className={'tool-tip'}>
-                                <InfoIcon fontSize={"small"} />
-                            </OptionTooltip>
-                        </label>
-                        <select
-                            id="colorComparer"
-                            value={colorComparer}
-                            onChange={e => setColorComparer(e.target.value)}
-                        >
-                            <option value={colorComparerTypes.EuclideanDistance}>Euclidean distance</option>
-                            <option value={colorComparerTypes.WeightedEuclideanDistance}>Weighted Euclidean distance</option>
-                            <option value={colorComparerTypes.CMC}>DE CMC</option>
-                            <option value={colorComparerTypes.DE76}>DE76</option>
-                            <option value={colorComparerTypes.DE2000}>DE2000</option>
-                        </select>
-                    </div>
-                    <div className={'option'}>
-                        <label for="colorSpace">
-                            Color space
+                                    <InfoIcon fontSize={"small"} />
+                                </OptionTooltip>
+                            </label>
+                            <select
+                                id="colorComparer"
+                                value={colorComparer}
+                                onChange={e => {
+                                    setColorComparer(e.target.value);
+                                    setSelectedPreset(null);
+                                }}
+                            >
+                                <option value={colorComparerTypes.EuclideanDistance}>Euclidean distance</option>
+                                <option value={colorComparerTypes.WeightedEuclideanDistance}>Weighted Euclidean distance</option>
+                                <option value={colorComparerTypes.CMC}>DE CMC</option>
+                                <option value={colorComparerTypes.DE76}>DE76</option>
+                                <option value={colorComparerTypes.DE2000}>DE2000</option>
+                            </select>
+                        </div>
+                        <div className={'option'}>
+                            <label for="colorSpace">
+                                Color space
                         <OptionTooltip title={tooltips.colorSpace} placement="left" className={'tool-tip'}>
-                                <InfoIcon fontSize={"small"} />
-                            </OptionTooltip>
-                        </label>
-                        <select
-                            id="colorSpace"
-                            value={colorSpace}
-                            onChange={e => setColorSpace(e.target.value)}
-                        >
-                            <option value={colorSpaceTypes.Rgb}>RGB</option>
-                            <option value={colorSpaceTypes.Hsv}>HSV</option>
-                            <option value={colorSpaceTypes.Lab}>CIELab</option>
-                            <option value={colorSpaceTypes.Luv}>CIELUV</option>
-                            <option value={colorSpaceTypes.Ycc}>YCbCr</option>
-                        </select>
-                    </div>
-                </Collapse>
-            </div>
-            <div className={'buttons'}>
-                <CreateProject guid={guid} />
-                <button type="button" onClick={() => getPreview()}>Generate preview</button>
-                <button type="button" onClick={() => getSpreadsheet()}>Generate spreadsheet</button>
-                <label for="file-upload">
-                    Upload new image
+                                    <InfoIcon fontSize={"small"} />
+                                </OptionTooltip>
+                            </label>
+                            <select
+                                id="colorSpace"
+                                value={colorSpace}
+                                onChange={e => {
+                                    setColorSpace(e.target.value);
+                                    setSelectedPreset(null);
+                                }}
+                            >
+                                <option value={colorSpaceTypes.Rgb}>RGB</option>
+                                <option value={colorSpaceTypes.Lab}>CIELab</option>
+                            </select>
+                        </div>
+                    </Collapse>
+                </div>
+                <div className={'buttons'}>
+                    <CreateProject guid={guid} />
+                    <button type="button" onClick={() => getPreview()}>Generate preview</button>
+                    <button type="button" onClick={() => getSpreadsheet()}>Generate spreadsheet</button>
+                    <label for="file-upload">
+                        Upload new image
                 </label>
-                <input type="file"
-                    id="file-upload"
-                    onChange={(e) => uploadNewImage(e)}
-                    accept=".gif, .jpeg, .jpg, .png, .bmp"
-                />
+                    <input type="file"
+                        id="file-upload"
+                        onChange={(e) => uploadNewImage(e)}
+                        accept=".gif, .jpeg, .jpg, .png, .bmp"
+                    />
+                </div>
+
             </div>
-            
-        </div>
+            <div className={'presets'}>
+                <div
+                    className={'collapse-bar'}
+                    onClick={() => setPresetsTab(!presetsTab)}
+                >
+                    <Icon icon={angleLine} rotate={`${presetsTab ? '90deg' : '270deg'}`} />
+                </div>
+                <div
+                    className={'presets-main'}
+                    style={{
+                        display: `${presetsTab ? 'grid' : 'none'}`
+                    }}
+                >
+                    <div className={'title'}>
+                        Presets
+                    </div>
+                    <div className={'presets-list'}>
+                        {
+                            presets.length > 0 ?
+                                presets.map((preset, i) => (
+                                    <div
+                                        className={`preset ${i == selectedPreset ? 'selected' : ''}`}
+                                        key={i}
+                                        onClick={() => setSelectedPreset(i)}
+                                    >
+                                        {presets[i].name}
+                                    </div>
+                                ))
+                                :
+                                <div className={'preset-info'}>
+                                    You can save your current settings as a preset with the button below
+                                </div>
+                        }
+                    </div>
+                    <div className={'presets-buttons'}>
+                        <input type="text"
+                            placeholder="Preset name..."
+                            value={presetName}
+                            onChange={e => setPresetName(e.target.value)}
+                        />
+                        <button type="button"
+                            onClick={() => {
+                                addPreset();
+                                setSelectedPreset(presets.length);
+                                setPresetName("");
+                            }}
+                            disabled={presetName.length == 0}
+                        >
+                            Save preset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+
     );
 }

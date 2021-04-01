@@ -7,12 +7,14 @@ import CloseIcon from '@material-ui/icons/Close';
 import Typography from '@material-ui/core/Typography';
 import Tooltip from '@material-ui/core/Tooltip';
 import { authService } from '../AuthService';
+import Spinner from './Spinner';
 
 export default function CreateProject({ guid }) {
     const [isOpen, setIsOpen] = useState(false);
     const [projectName, setProjectName] = useState("");
     const [projectWarning, setProjectWarning] = useState("");
     const [created, setCreated] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState(authService.currentUserValue());
 
     useEffect(() => {
@@ -48,8 +50,8 @@ export default function CreateProject({ guid }) {
                     setProjectWarning('');
                 }
                 }>
-                        <CloseIcon />
-                    </IconButton>
+                    <CloseIcon />
+                </IconButton>
             </MuiDialogTitle>
         );
     });
@@ -64,6 +66,7 @@ export default function CreateProject({ guid }) {
     }))(Tooltip);
 
     const createProject = () => {
+        setLoading(true);
         var headers = new Headers();
         authService.addAuthHeader(headers);
         headers.append('Content-Type', 'application/json');
@@ -83,6 +86,7 @@ export default function CreateProject({ guid }) {
                     return res.text();
             })
             .then(text => {
+                setLoading(false);
                 if (text)
                     setProjectWarning(text);
             })
@@ -92,51 +96,52 @@ export default function CreateProject({ guid }) {
     return (
         <>
             <InfoTooltip disableHoverListener={currentUser != null} title={'You have to be logged in to create a project'} placement="left" className={'tool-tip'}>
-            <button
-                type="button"
-                onClick={() => setIsOpen(true)}
-                disabled={currentUser == null}
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(true)}
+                    disabled={currentUser == null}
                 >Create project</button>
             </InfoTooltip>
-        <Dialog className={'create-project-dialog'} open={isOpen}>
+            <Dialog className={'create-project-dialog'} open={isOpen}>
                 <DialogTitle>
                     {
                         !created && 'Create a project'
                     }
-                
-            </DialogTitle>
-                <div className={'dialog-content'}>
-                    {
-                        !created ? 
-                            <>
-                            <label for="project-name">
-                                Project name
-                    </label>
-                    <input type="text" value={projectName} onChange={e => setProjectName(e.target.value)} />
-                    {
-                        projectWarning.length > 0 &&
-                        <div className={'warning'}>
-                            {projectWarning}
+
+                </DialogTitle>
+                {
+                    loading ? 
+                        <div className={'dialog-content'}>
+                            <Spinner />
                         </div>
-                    }
-                                <button type="button" disabled={projectName.length < 3} onClick={() => {
-                        createProject();
-                    }}>Create project</button>
-                            </>
-                            :
-                            <>
-                            <div>
-                                Project {projectName} successfully added to your account.
-                            </div>
+                        :
+                        created ?
+                            <div className={'dialog-content'}>
+                                <div>
+                                    Project {projectName} successfully added to your account.
+                                </div>
                                 <div>
                                     You can access it via the 'Projects' option in the navigation bar
                                 </div>
-                            </>
-                    }
-                
-
-            </div>
+                            </div>
+                            :
+                            <div className={'dialog-content'}>
+                                <label for="project-name">
+                                    Project name
+                                </label>
+                                <input type="text" value={projectName} onChange={e => setProjectName(e.target.value)} />
+                                {
+                                    projectWarning.length > 0 &&
+                                    <div className={'warning'}>
+                                        {projectWarning}
+                                    </div>
+                                }
+                                <button type="button" disabled={projectName.length < 3} onClick={() => {
+                                    createProject();
+                                }}>Create project</button>
+                            </div>
+                }
             </Dialog>
         </>
-        );
+    );
 }

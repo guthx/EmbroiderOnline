@@ -95,7 +95,15 @@ function LoginMenu({ isOpen, setIsOpen }) {
     const [awaiting, setAwaiting] = useState(false);
 
     return (
-        <div className={'login nav-item'}>
+        <div
+            className={'login nav-item'}
+            onKeyDown={e => {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    document.getElementById('login-button').click();
+                }
+            }}
+        >
             <div
                 className={'login-menu-collapse nav-button'}
                 onClick={e => setIsOpen(!isOpen)}
@@ -122,6 +130,7 @@ function LoginMenu({ isOpen, setIsOpen }) {
                 {
                     !awaiting ?
                         <button
+                            id={'login-button'}
                             className={'nav-dropdown-item'}
                             type="button"
                             disabled={email.length < 3 || password.length < 3}
@@ -168,7 +177,15 @@ function RegisterMenu({ isOpen, setIsOpen }) {
     const emailRegex = /\w+@\w+\.\w+/;
 
     return (
-        <div className={'register nav-item'}>
+        <div
+            className={'register nav-item'}
+            onKeyDown={e => {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    document.getElementById('register-button').click();
+                }
+            }}
+        >
             <div
                 className={'register-menu-collapse nav-button'}
                 onClick={e => setIsOpen(!isOpen)}
@@ -261,7 +278,13 @@ function RegisterMenu({ isOpen, setIsOpen }) {
                     <input id="repeat-password-input"
                         type="password"
                         value={repeatPassword}
-                        onChange={e => setRepeatPassword(e.target.value)}
+                        onChange={e => {
+                            setRepeatPassword(e.target.value)
+                            if (e.target.value == password)
+                                setPasswordsDontMatch(false);
+                            else
+                                setPasswordsDontMatch(true);
+                        }}
                         onFocus={e => setFocus('repeatPassword')}
                         onBlur={e => {
                             setFocus('');
@@ -281,6 +304,7 @@ function RegisterMenu({ isOpen, setIsOpen }) {
                 {
                     !awaiting ?
                         <button
+                            id="register-button"
                             type="button"
                             className={'nav-dropdown-item'}
                             disabled={!usernameCorrect || !passwordCorrect || !emailCorrect || passwordsDontMatch}
