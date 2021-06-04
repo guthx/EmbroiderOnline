@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import Spinner from './Spinner';
 
 export function ImageUpload({ saveFile, onDrop, imageDragged, uploading, warning }) {
     const [dragInArea, setDragInArea] = useState(false);
@@ -6,20 +7,18 @@ export function ImageUpload({ saveFile, onDrop, imageDragged, uploading, warning
     const dragEnter = (e) => {
         e.preventDefault();
         setDragInArea(true);
-        console.log(e);
     }
 
     const dragLeave = (e) => {
         e.preventDefault();
         setDragInArea(false);
-        console.log(e);
     }
     if (uploading)
         return (
             <div
                 className={`image-upload-window`}>
                 <div className={'image-upload'}>
-                    <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                    <Spinner />
                 </div>
             </div>
         )

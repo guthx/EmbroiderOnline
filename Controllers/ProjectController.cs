@@ -38,6 +38,30 @@ namespace EmroiderOnline.Controllers
             }
         }
 
+        public class DeleteProjectRequest
+        {
+            public string Name { get; set; }
+        }
+        
+        [HttpDelete("{name}")]
+        [Authorize]
+        public ActionResult DeleteProject(string name)
+        {
+            try
+            {
+                var userId = HttpContext.User.Identity.Name;
+                var response = _projectService.DeleteProject(userId, name);
+                if (response == false)
+                    return StatusCode(400);
+                else
+                    return StatusCode(200);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500);
+            }
+        }
+        /*
         [HttpGet("{id}")]
         [Authorize]
         public ActionResult GetProject(string id)
@@ -56,5 +80,6 @@ namespace EmroiderOnline.Controllers
                 return StatusCode(500);
             }
         }
+        */
     }
 }

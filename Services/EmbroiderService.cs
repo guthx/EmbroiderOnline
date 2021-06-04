@@ -7,8 +7,6 @@ using Embroider;
 using System.IO;
 using EmroiderOnline.Models;
 using System.Drawing;
-using Emgu.CV;
-using Emgu.CV.Structure;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
 using Embroider.Quantizers;
@@ -17,6 +15,8 @@ using OfficeOpenXml;
 using static Embroider.Enums;
 using System.Timers;
 using MongoDB.Driver;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp;
 
 namespace EmroiderOnline.Services
 {
@@ -31,20 +31,19 @@ namespace EmroiderOnline.Services
             _users = db.GetCollection<User>("Users");
         }
 
-        public bool CreateEmbroider(IFormFile file, string fileName, string guid)
+        public List<Floss> CreateEmbroider(IFormFile file, string fileName, string guid)
         {
 
             if (!fileName.EndsWith(".jpg") &&
                 !fileName.EndsWith(".png") &&
                 !fileName.EndsWith(".gif"))
-                return false;
+                return null;
 
             var id = Guid.Parse(guid);
-            var bitmap = new Bitmap(file.OpenReadStream());
-            var image = bitmap.ToImage<Rgb, double>();
+            var image = SixLabors.ImageSharp.Image.Load<Rgb24>(file.OpenReadStream());
             var embroider = new Embroider.Embroider(image);
             _embroiders.AddOrUpdate(id, embroider, (key, val) => embroider);
-            var timer = new Timer(300000);
+            var timer = new Timer(600000);
             timer.Elapsed += (obj, args) =>
             {
                 _embroiders.Remove(id, out _);
@@ -54,18 +53,18 @@ namespace EmroiderOnline.Services
             timer.AutoReset = false;
             timer.Start();
             _deletionTimers.AddOrUpdate(id, timer, (key, val) => timer);
-            return true;
+            return Flosses.Dmc();
         }
 
-        public Image<Rgb, double> GetPreviewImage(OptionsRequest request)
+        public Image<Rgb24> GetPreviewImage(OptionsRequest request)
         {
             Embroider.Embroider embroider;
             if(_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
             {
                 setEmbroiderOptions(embroider, request);
+                resetDeletionTimer(Guid.Parse(request.Guid));
                 return embroider.GenerateImage();
             }
-            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -75,9 +74,9 @@ namespace EmroiderOnline.Services
             if (_embroiders.TryGetValue(Guid.Parse(request.Guid), out embroider))
             {
                 setEmbroiderOptions(embroider, request);
+                resetDeletionTimer(Guid.Parse(request.Guid));
                 return embroider.GenerateExcelSpreadsheet();
             }
-            resetDeletionTimer(Guid.Parse(request.Guid));
             return null;
         }
 
@@ -86,9 +85,9 @@ namespace EmroiderOnline.Services
             Embroider.Embroider embroider;
             if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
             {
+                resetDeletionTimer(Guid.Parse(guid));
                 return embroider.GetSummary();
             }
-            resetDeletionTimer(Guid.Parse(guid));
             return null;
         }
         public enum CreateProjectResult
@@ -112,11 +111,32 @@ namespace EmroiderOnline.Services
                 var project = new Project(name, stitchMap, image);
 
                 _users.UpdateOne(u => u.Id == userId, Builders<User>.Update.AddToSet(u => u.Projects, project));
+                resetDeletionTimer(Guid.Parse(guid));
                 return CreateProjectResult.Created;
 
             }
-            resetDeletionTimer(Guid.Parse(guid));
             return CreateProjectResult.NoImage;
+        }
+
+        public bool ModifyPalette(string guid, List<Floss> flosses)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                embroider.ModifyPalette(flosses);
+                return true;
+            }
+            return false;
+        }
+
+        public Image<Rgb24> ExcludeFlosses(string[] excludedFlosses, string guid)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                return embroider.ExcludeFlosses(excludedFlosses);
+            }
+            return null;
         }
 
         private void setEmbroiderOptions(Embroider.Embroider embroider, OptionsRequest request)
@@ -141,6 +161,9 @@ namespace EmroiderOnline.Services
                     break;
                 case "ModifiedMedianCut":
                     quantizerType = QuantizerType.ModifiedMedianCut;
+                    break;
+                case "Wu":
+                    quantizerType = QuantizerType.Wu;
                     break;
                 default:
                     quantizerType = QuantizerType.Octree;
@@ -240,7 +263,8 @@ namespace EmroiderOnline.Services
                 ColorComparerType = colorComparer,
                 DithererType = dithererType,
                 DithererStrength = request.DithererStrength,
-                WidthStitchCount = request.WidthStitchCount
+                WidthStitchCount = request.WidthStitchCount,
+                Flosses = embroider.Options.Flosses
             };
             resetDeletionTimer(Guid.Parse(request.Guid));
             embroider.Options = options;

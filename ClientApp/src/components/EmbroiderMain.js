@@ -1,23 +1,22 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import React, { useState } from 'react'
 import ImagePreview from './ImagePreview';
 import { EmbroiderOptions } from './EmbroiderOptions';
 import Dialog from '@material-ui/core/Dialog';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import { Typography } from '@material-ui/core';
+import Spinner from './Spinner';
+import { tabType } from '../Enums';
 
-export const tabType = {
-    IMAGE: 0,
-    PREVIEW: 1,
-    SUMMARY: 2
-}
 
-export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, setTimeout, timeout, warning }) {
+export function EmbroiderMain({ image, guid, uploading, saveFile, setTimeout, timeout, warning, flosses }) {
     const [selectedTab, setSelectedTab] = useState(tabType.IMAGE);
     const [previewImage, setPreviewImage] = useState(null);
     const [loading, setLoading] = useState(false);
     const [loadingSpreadsheet, setLoadingSpreadsheet] = useState(false);
     const [summary, setSummary] = useState(null);
     const [imageSize, setImageSize] = useState({ height: "100", width: "100" });
+    const [excludedFlosses, setExcludedFlosses] = useState([]);
+    const [updatePreview, setUpdatePreview] = useState(false);
 
     const uploadNewImage = (e) => {
         if (saveFile(e)) {
@@ -31,7 +30,7 @@ export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, s
         var dialogContent;
         if (uploading) {
             dialogContent = (
-                <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                <Spinner />
             );
         }
         else {
@@ -75,7 +74,7 @@ export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, s
         <div className={'main-wrapper'}>
             <Dialog className={'dialog'} open={loadingSpreadsheet}>
                 <DialogTitle id="dialog-title">Generating spreadsheet</DialogTitle>
-                <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                <Spinner />
             </Dialog>
             <SessionTimeout />
             <ImagePreview
@@ -86,6 +85,15 @@ export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, s
                 setSelectedTab={setSelectedTab}
                 setImageSize={setImageSize}
                 summary={summary}
+                setSummary={setSummary}
+                setLoading={setLoading}
+                setPreviewImage={setPreviewImage}
+                setTimeout={setTimeout}
+                guid={guid}
+                excludedFlosses={excludedFlosses}
+                setExcludedFlosses={setExcludedFlosses}
+                updatePreview={updatePreview}
+                setUpdatePreview={setUpdatePreview}
                 />
             <EmbroiderOptions
                 guid={guid}
@@ -99,6 +107,9 @@ export function EmbroiderMain({ image, guid, setUploaded, uploading, saveFile, s
                 setTimeout={setTimeout}
                 selectedTab={selectedTab}
                 uploadNewImage={uploadNewImage}
+                flosses={flosses}
+                setExcludedFlosses={setExcludedFlosses}
+                setUpdatePreview={setUpdatePreview}
             />
         </div>
         );

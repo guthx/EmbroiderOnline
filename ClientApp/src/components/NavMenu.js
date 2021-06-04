@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Route, BrowserRouter as Router, Switch } from 'react-router-dom';
-import { Collapse, Nav, Navbar, NavbarBrand, NavbarToggler, DropdownMenu, NavLink, Dropdown, DropdownToggle, DropdownItem } from 'reactstrap';
 import { authService } from '../AuthService';
 import { Home } from './Home';
 import './NavMenu.css';
@@ -10,45 +9,68 @@ import Spinner from './Spinner';
 
 export default function NavMenu() {
     const [currentUser, setCurrentUser] = useState(null);
-    const [isOpen, setIsOpen] = useState(true);
-
+    const [loginMenuOpen, setLoginMenuOpen] = useState(false);
+    const [registerMenuOpen, setRegisterMenuOpen] = useState(false);
     useEffect(() => {
-        authService.currentUser.subscribe(user => setCurrentUser(user));
+        if (loginMenuOpen)
+            setRegisterMenuOpen(false);
+    }, [loginMenuOpen]);
+    useEffect(() => {
+        if (registerMenuOpen)
+            setLoginMenuOpen(false);
+    }, [registerMenuOpen])
+    useEffect(() => {
+        let sub = authService.currentUser.subscribe(user => setCurrentUser(user));
+
+        return () => sub.unsubscribe();
     }, []);
-    console.log(currentUser);
+
     return (
         <Router>
-        <header>
-            <nav className={'nav-bar'}>
-            {
-                    currentUser == null ?
-                        <>
-                            <LoginMenu />
-                            <RegisterMenu />
-                        </>
-                        :
-                        <>
-                            <div className={'nav-item'}>
-                                <div
-                                    className={'nav-button'}
-                                    onClick={e => authService.logout()}
-                                >
-                                    Logout
-                                </div>
-                            </div>
-                            <div className={'nav-item username'}>
-                                Logged in as {currentUser.username}
-                            </div>
+            <header>
+                <nav className={'nav-bar'}>
+                    <div className={'nav-item nav-title'}>
+                        <Link to="/">
+                            Embroider
+                        </Link>
+                    </div>
+                    {
+                        currentUser == null ?
+                            <>
+                                <LoginMenu
+                                    isOpen={loginMenuOpen}
+                                    setIsOpen={setLoginMenuOpen}
+                                />
+                                <RegisterMenu
+                                    isOpen={registerMenuOpen}
+                                    setIsOpen={setRegisterMenuOpen}
+                                />
+                            </>
+                            :
+                            <>
                                 <div className={'nav-item'}>
-                                    <div className={'nav-button'}>
-                                        <Link to="/projects">My projects</Link>
-                                    </div>
+                                    <div
+                                        className={'nav-button'}
+                                        onClick={e => authService.logout()}
+                                    >
+                                        Logout
                                 </div>
-                        </>
-            }
-            </nav>
-                
-            
+                                </div>
+                                <div className={'nav-item username'}>
+                                    Logged in as {currentUser.username}
+                                </div>
+                                <Link to="/projects">
+                                    <div className={'nav-item'}>
+                                        <div className={'nav-button'}>
+                                            My projects
+                                    </div>
+                                    </div>
+                                </Link>
+                            </>
+                    }
+                </nav>
+
+
             </header>
             <Switch>
                 <Route path="/projects">
@@ -66,15 +88,22 @@ export default function NavMenu() {
 }
 
 
-function LoginMenu() {
+function LoginMenu({ isOpen, setIsOpen }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [isOpen, setIsOpen] = useState(false);
     const [wrongCredentials, setWrongCredentials] = useState(false);
     const [awaiting, setAwaiting] = useState(false);
 
     return (
-        <div className={'login nav-item'}>
+        <div
+            className={'login nav-item'}
+            onKeyDown={e => {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    document.getElementById('login-button').click();
+                }
+            }}
+        >
             <div
                 className={'login-menu-collapse nav-button'}
                 onClick={e => setIsOpen(!isOpen)}
@@ -101,23 +130,24 @@ function LoginMenu() {
                 {
                     !awaiting ?
                         <button
+                            id={'login-button'}
                             className={'nav-dropdown-item'}
                             type="button"
                             disabled={email.length < 3 || password.length < 3}
                             onClick={e => {
-                            setAwaiting(true);
-                            authService.login(email, password)
-                                .then(user => {
-                                    setAwaiting(false);
-                                    if (user == null)
-                                        setWrongCredentials(true);
-                                    else {
-                                        setIsOpen(false);
-                                        setWrongCredentials(false);
-                                    }
+                                setAwaiting(true);
+                                authService.login(email, password)
+                                    .then(user => {
+                                        setAwaiting(false);
+                                        if (user == null)
+                                            setWrongCredentials(true);
+                                        else {
+                                            setIsOpen(false);
+                                            setWrongCredentials(false);
+                                        }
 
-                                })
-                        }}>
+                                    })
+                            }}>
                             Login
                 </button>
                         :
@@ -130,7 +160,7 @@ function LoginMenu() {
 }
 
 
-function RegisterMenu() {
+function RegisterMenu({ isOpen, setIsOpen }) {
     const [username, setUsername] = useState("");
     const [usernameCorrect, setUsernameCorrect] = useState(false);
     const [email, setEmail] = useState("");
@@ -139,7 +169,6 @@ function RegisterMenu() {
     const [password, setPassword] = useState("");
     const [passwordCorrect, setPasswordCorrect] = useState(false);
     const [repeatPassword, setRepeatPassword] = useState("");
-    const [isOpen, setIsOpen] = useState(false);
     const [passwordsDontMatch, setPasswordsDontMatch] = useState(false);
     const [awaiting, setAwaiting] = useState(false);
     const [error, setError] = useState("");
@@ -148,7 +177,15 @@ function RegisterMenu() {
     const emailRegex = /\w+@\w+\.\w+/;
 
     return (
-        <div className={'register nav-item'}>
+        <div
+            className={'register nav-item'}
+            onKeyDown={e => {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    document.getElementById('register-button').click();
+                }
+            }}
+        >
             <div
                 className={'register-menu-collapse nav-button'}
                 onClick={e => setIsOpen(!isOpen)}
@@ -209,7 +246,7 @@ function RegisterMenu() {
                     />
                 </div>
                 {
-                    !passwordCorrect  && password.length > 0 && focus != 'password' &&
+                    !passwordCorrect && password.length > 0 && focus != 'password' &&
                     <div className={'warning nav-dropdown-item'}>
                         Password must be between 3-18 characters
                     </div>
@@ -241,7 +278,13 @@ function RegisterMenu() {
                     <input id="repeat-password-input"
                         type="password"
                         value={repeatPassword}
-                        onChange={e => setRepeatPassword(e.target.value)}
+                        onChange={e => {
+                            setRepeatPassword(e.target.value)
+                            if (e.target.value == password)
+                                setPasswordsDontMatch(false);
+                            else
+                                setPasswordsDontMatch(true);
+                        }}
                         onFocus={e => setFocus('repeatPassword')}
                         onBlur={e => {
                             setFocus('');
@@ -261,6 +304,7 @@ function RegisterMenu() {
                 {
                     !awaiting ?
                         <button
+                            id="register-button"
                             type="button"
                             className={'nav-dropdown-item'}
                             disabled={!usernameCorrect || !passwordCorrect || !emailCorrect || passwordsDontMatch}
@@ -288,7 +332,7 @@ function RegisterMenu() {
                                         setError("An unspecified error has occured");
                                         setAwaiting(false);
                                     });
-                        }}>
+                            }}>
                             Register
                 </button>
                         :

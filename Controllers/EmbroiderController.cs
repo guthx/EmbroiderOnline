@@ -1,5 +1,4 @@
-﻿using Emgu.CV;
-using EmroiderOnline.Models;
+﻿using EmroiderOnline.Models;
 using EmroiderOnline.Models.Requests;
 using EmroiderOnline.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -42,20 +41,22 @@ namespace EmroiderOnline.Controllers
             public string Guid { get; set; }
         }
         [HttpPost]
-        public ActionResult<string> CreateEmbroider([FromForm] CreateEmbroiderRequest request)
+        public ActionResult CreateEmbroider([FromForm] CreateEmbroiderRequest request)
         {
             try
             {
-                if (!_embroiderService.CreateEmbroider(request.FormFile, request.ImageName, request.Guid))
+                var response = _embroiderService.CreateEmbroider(request.FormFile, request.ImageName, request.Guid);
+                if (response == null)
                 {
                     return StatusCode(400);
                 } else
                 {
-                    return StatusCode(200);
+                    return new JsonResult(response);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -70,15 +71,15 @@ namespace EmroiderOnline.Controllers
                 var image = _embroiderService.GetPreviewImage(request);
                 if (image == null)
                     return StatusCode(400);
-                var bitmap = image.ToBitmap();
                 using (var stream = new MemoryStream())
                 {
-                    bitmap.Save(stream, ImageFormat.Png);
+                    image.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
                     return File(stream.ToArray(), "image/png");
                 }
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -95,8 +96,9 @@ namespace EmroiderOnline.Controllers
                 spreadsheet = null;
                 return File(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -111,8 +113,9 @@ namespace EmroiderOnline.Controllers
                     return StatusCode(400);
                 return new JsonResult(new SummaryResponse(summary));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return StatusCode(500);
             }
         }
@@ -147,6 +150,50 @@ namespace EmroiderOnline.Controllers
             }
             
             
+        }
+
+        [HttpPost("modifyPalette")]
+        public ActionResult ModifyPalette([FromBody] ModifyPaletteRequest request)
+        {
+            try
+            {
+                if (!_embroiderService.ModifyPalette(request.Guid, request.Flosses))
+                {
+                    return StatusCode(400);
+                }
+                else
+                {
+                    return StatusCode(200);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+        }
+
+        [HttpPost("excludeFlosses")]
+        public ActionResult ExcludeFlosses([FromBody] ExcludeFlossesRequest request)
+        {
+            try
+            {
+                var response = _embroiderService.ExcludeFlosses(request.ExcludedFlosses.ToArray(), request.Guid);
+                if (response == null)
+                {
+                    return StatusCode(400);
+                }
+                using (var stream = new MemoryStream())
+                {
+                    response.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                    return File(stream.ToArray(), "image/png");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
         }
     }
 }

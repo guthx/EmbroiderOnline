@@ -1,4 +1,4 @@
-import React, { Component, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageUpload } from './ImageUpload';
 import { EmbroiderMain } from './EmbroiderMain';
 
@@ -10,6 +10,7 @@ export function Home(props) {
     const [uploaded, setUploaded] = useState(false);
     const [timeout, setTimeout] = useState(false);
     const [warning, setWarning] = useState(false);
+    const [flosses, setFlosses] = useState([]);
 
     useEffect(() => {
         fetch('api/embroider')
@@ -25,7 +26,6 @@ export function Home(props) {
         }
             
         setUploading(true);
-        console.log(e.target.files[0]);
         setImage(e.target.files[0]);
         const formData = new FormData();
         formData.append("formFile", e.target.files[0]);
@@ -35,16 +35,14 @@ export function Home(props) {
             method: 'POST',
             body: formData
         })
-            .then(res => {
+            .then(res => res.json())
+            .then(json => {
                 setUploading(false);
-                if (res.status == 200) {
-                    setUploaded(true);
-                    setTimeout(false);
-                }
-                    
+                setUploaded(true);
+                setTimeout(false);
+                setFlosses(json);
             })
             .catch(ex => {
-                console.log(ex);
             });
         return true;
     }
@@ -70,13 +68,14 @@ export function Home(props) {
             method: 'POST',
             body: formData
         })
-            .then(res => {
+            .then(res => res.json())
+            .then(json => {
                 setUploading(false);
-                if (res.status == 200)
-                    setUploaded(true);
+                setUploaded(true);
+                setTimeout(false);
+                setFlosses(json);
             })
             .catch(ex => {
-                console.log(ex);
             });
     }
 
@@ -102,6 +101,7 @@ export function Home(props) {
                 timeout={timeout}
                 setTimeout={setTimeout}
                 warning={warning}
+                flosses={flosses}
                 />
             );
 
