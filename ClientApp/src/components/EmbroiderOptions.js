@@ -8,9 +8,11 @@ import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 import Collapse from '@material-ui/core/Collapse';
 import { Icon, InlineIcon } from '@iconify/react';
 import angleLine from '@iconify-icons/clarity/angle-line';
+import CloseIcon from '@material-ui/icons/Close';
 
 import CreateProject from './CreateProject';
 import { quantizerTypes, dithererTypes, colorComparerTypes, colorSpaceTypes, octreeModes, sizeInputs, tabType } from '../Enums';
+import Spinner from './Spinner';
 
 const tooltips = {
     stitchSize: "Defines how many pixels from original image will make up a single stitch",
@@ -33,7 +35,22 @@ const tooltips = {
 
 }
 
-export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelectedTab, setLoadingSpreadsheet, setSummary, setTimeout, imageName, imageSize, selectedTab, uploadNewImage }) {
+export function EmbroiderOptions({
+    guid,
+    setPreviewImage,
+    setLoading,
+    setSelectedTab,
+    setLoadingSpreadsheet,
+    setSummary,
+    setTimeout,
+    imageName,
+    imageSize,
+    selectedTab,
+    uploadNewImage,
+    flosses,
+    setExcludedFlosses,
+    setUpdatePreview
+}) {
     const [stitchSize, setStitchSize] = useState(4);
     const [maxColors, setMaxColors] = useState(32);
     const [outputStitchSize, setOutputStitchSize] = useState(4);
@@ -51,9 +68,20 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     const [presets, setPresets] = useState([]);
     const [presetName, setPresetName] = useState("");
     const [selectedPreset, setSelectedPreset] = useState(null);
+    const [paletteEditorOpen, setPaletteEditorOpen] = useState(false);
+    const [maxWidth, setMaxWidth] = useState(0);
 
     useEffect(() => {
-        setStitchWidth(parseInt(imageSize.width / stitchSize));
+        let ratio = Math.sqrt(100000 / (imageSize.width * imageSize.height));
+        let maxWidth;
+        if (ratio < 1)
+            maxWidth = parseInt(imageSize.width * ratio);
+        else
+            maxWidth = imageSize.width;
+        setMaxWidth(maxWidth);
+        let minStitchSize = Math.ceil(imageSize.width / maxWidth);
+        setStitchSize(minStitchSize);
+        setStitchWidth(parseInt(imageSize.width / minStitchSize));
     }, [imageSize]);
 
     useEffect(() => {
@@ -76,15 +104,20 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
     const clampValue = (e, setValue) => {
         if (e.target.value == "") {
             setValue(e.target.min);
-            return;
+            return e.target.min;
         }
         var val = parseInt(e.target.value);
         var min = parseInt(e.target.min);
         var max = parseInt(e.target.max);
-        if (val < min)
+        if (val < min) {
             setValue(min);
-        else if (val > max)
+            return min;
+        }
+        else if (val > max) {
             setValue(max);
+            return max;
+        }
+            
     }
 
     const getPreview = () => {
@@ -122,6 +155,8 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
             })
             .then(image => {
                 setPreviewImage(image);
+                setExcludedFlosses([]);
+                setUpdatePreview(false);
                 getSummary();
                 setLoading(false);
             })
@@ -180,10 +215,27 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                 return res.json();
             })
             .then(summary => {
+                console.log(summary);
                 setSummary(summary);
             })
             .catch(ex => { })
     }
+
+    const modifyPalette = () => {
+        let newFlosses = flosses.filter(floss => !floss.excluded);
+        return fetch('api/embroider/modifyPalette', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                guid: guid,
+                flosses: newFlosses
+            })
+        });
+    }
+
+    
 
     const addPreset = () => {
         let newPreset = {
@@ -243,23 +295,17 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                                 setSelectedPreset(null);
                             }}
                             onBlur={e => {
-                                if (e.target.value == "") {
-                                    var val = parseInt(Math.ceil(imageSize.width / 500));
-                                    setStitchSize(val);
-                                    setStitchWidth(parseInt(imageSize.width / val));
+                                let size = clampValue(e, setStitchSize);
+                                if (size) {
+                                    setStitchWidth(parseInt(imageSize.width / size));
                                 }
                                 else {
-                                    var val = parseInt(e.target.value);
-                                    var max = parseInt(imageSize.width / 5);
-                                    var min = parseInt(Math.ceil(imageSize.width / 500));
-                                    if (val > max)
-                                        val = max;
-                                    else if (val < min)
-                                        val = min;
-                                    setStitchSize(val);
-                                    setStitchWidth(parseInt(imageSize.width / val));
+                                    setStitchWidth(parseInt(imageSize.width / e.target.value));
                                 }
+                                
                             }}
+                            min={Math.ceil(imageSize.width / maxWidth)}
+                            max={imageSize.width}
                         />
                     </div>
                     <div className={`option`}>
@@ -281,19 +327,10 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                                 setSelectedPreset(null);
                             }}
                             onBlur={e => {
-                                if (e.target.value == "")
-                                    setStitchWidth(100);
-                                else {
-                                    var val = parseInt(e.target.value);
-                                    var min = 5;
-                                    var max = 500;
-                                    if (val > max)
-                                        val = max;
-                                    else if (val < min)
-                                        val = min;
-                                    setStitchWidth(val);
-                                }
+                                clampValue(e, setStitchWidth);
                             }}
+                            min={1}
+                            max={maxWidth}
                         />
                     </div>
                     <div className={'option'}>
@@ -355,6 +392,15 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                             <span class="slider"></span>
                         </label>
                     </div>
+                    <div className={'option'}>
+                        <button
+                            id="palette-editor-button"
+                            type="button"
+                            onClick={() => setPaletteEditorOpen(true)}
+                        >
+                            Edit palette
+                        </button>
+                    </div>
                     <div
                         onClick={e => setAdvancedTab(!advancedTab)}
                         className={'advanced-tab-title'}>
@@ -385,6 +431,7 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                                 <option value={quantizerTypes.ModifiedMedianCut}>Modified median cut</option>
                                 <option value={quantizerTypes.Popularity}>Popularity</option>
                                 <option value={quantizerTypes.SimplePopularity}>Simple popularity</option>
+                                <option value={quantizerTypes.Wu}>Wu's quantizer</option>
                             </select>
                         </div>
                         {
@@ -580,7 +627,140 @@ export function EmbroiderOptions({ guid, setPreviewImage, setLoading, setSelecte
                     </div>
                 </div>
             </div>
+            {
+                paletteEditorOpen && <PaletteEditor
+                    flosses={flosses}
+                    setPaletteEditorOpen={setPaletteEditorOpen}
+                    modifyPalette={modifyPalette}
+                />
+            }
         </>
 
+    );
+}
+
+
+function PaletteEditor({ flosses, setPaletteEditorOpen, modifyPalette }) {
+    const [availableFlossCount, setAvailableFlossCount] = useState(0);
+    const [saving, setSaving] = useState(false);
+    useEffect(() => {
+        if (flosses) {
+            let count = 0;
+            for (let i = 0; i < flosses.length; i++) {
+                if (!flosses[i].excluded)
+                    count++;
+            }
+            setAvailableFlossCount(count);
+        }
+    }, [flosses])
+
+    function excludeAll() {
+        for (let i = 0; i < flosses.length; i++) {
+            flosses[i].excluded = true;
+        }
+        setAvailableFlossCount(0);
+    }
+
+    function includeAll() {
+        for (let i = 0; i < flosses.length; i++) {
+            flosses[i].excluded = false;
+        }
+        setAvailableFlossCount(flosses.length);
+    }
+
+    function handleFlossClick(e, i) {
+        if (flosses[i].excluded) {
+            flosses[i].excluded = false;
+            setAvailableFlossCount(availableFlossCount + 1);
+        }
+        else {
+            flosses[i].excluded = true;
+            setAvailableFlossCount(availableFlossCount - 1);
+        }
+    }
+
+    function handleSave(e) {
+        setSaving(true);
+        modifyPalette().then(res => {
+            setSaving(false);
+        });
+    }
+
+    return (
+        <div
+            className={'background-dim active'}
+            style={{
+                display: 'flex'
+            }}
+        >
+            <div className={'palette-editor'}>
+                <div
+                    className={'close-button'}
+                    onClick={() => setPaletteEditorOpen(false)}
+                >
+                    <CloseIcon />
+                </div>
+                <div className={'content'}>
+                    <div className={'info'}>
+                        By default, Embroider can use all of the DMC flosses listed below to generate patterns.<br />
+                        If you want to limit the flosses used, you can disable them here.<br />
+                        <div style={{
+                            fontSize: '14px',
+                            fontStyle: 'italic'
+                        }}>
+                            Palette is separate from other settings, which means changes here will apply to all your saved presets.
+                        </div>
+                </div>
+                    <div className={'buttons'}>
+                        <button
+                            type="button"
+                            onClick={() => includeAll()}
+                        >
+                            Include all
+                    </button>
+                        <button
+                            type="button"
+                            onClick={() => excludeAll()}
+                        >
+                            Exclude all
+                    </button>
+                    </div>
+                    <div className={'flosses'}>
+                        {
+                            flosses.map((floss, i) => {
+                                let color = `rgb(${floss.red}, ${floss.green}, ${floss.blue})`;
+                                return (
+                                    <div
+                                        className={'floss'}
+                                        style={{
+                                            backgroundColor: color,
+                                            color: (0.299 * floss.red + 0.587 * floss.green + 0.114 * floss.blue) / 255 > 0.5 ? 'black' : 'white',
+                                            opacity: `${floss.excluded ? '0.4' : '1'}`
+                                        }}
+                                        key={i}
+                                        onClick={e => handleFlossClick(e, i)}
+                                    >
+                                        {floss.number}
+                                    </div>
+                                );
+                            })
+                        }
+                    </div>
+                    {
+                        saving ?
+                            <Spinner />
+                            :
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={availableFlossCount < 2}
+                            >
+                                Save
+                            </button>
+                    }
+                    
+                </div>
+            </div>
+        </div>
     );
 }

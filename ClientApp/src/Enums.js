@@ -18,7 +18,8 @@ export const quantizerTypes = {
     MedianCut: "MedianCut",
     Popularity: "Popularity",
     SimplePopularity: "SimplePopularity",
-    ModifiedMedianCut: "ModifiedMedianCut"
+    ModifiedMedianCut: "ModifiedMedianCut",
+    Wu: "Wu"
 }
 
 export const dithererTypes = {

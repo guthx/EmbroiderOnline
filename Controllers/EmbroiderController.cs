@@ -41,16 +41,17 @@ namespace EmroiderOnline.Controllers
             public string Guid { get; set; }
         }
         [HttpPost]
-        public ActionResult<string> CreateEmbroider([FromForm] CreateEmbroiderRequest request)
+        public ActionResult CreateEmbroider([FromForm] CreateEmbroiderRequest request)
         {
             try
             {
-                if (!_embroiderService.CreateEmbroider(request.FormFile, request.ImageName, request.Guid))
+                var response = _embroiderService.CreateEmbroider(request.FormFile, request.ImageName, request.Guid);
+                if (response == null)
                 {
                     return StatusCode(400);
                 } else
                 {
-                    return StatusCode(200);
+                    return new JsonResult(response);
                 }
             }
             catch (Exception ex)
@@ -149,6 +150,50 @@ namespace EmroiderOnline.Controllers
             }
             
             
+        }
+
+        [HttpPost("modifyPalette")]
+        public ActionResult ModifyPalette([FromBody] ModifyPaletteRequest request)
+        {
+            try
+            {
+                if (!_embroiderService.ModifyPalette(request.Guid, request.Flosses))
+                {
+                    return StatusCode(400);
+                }
+                else
+                {
+                    return StatusCode(200);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+        }
+
+        [HttpPost("excludeFlosses")]
+        public ActionResult ExcludeFlosses([FromBody] ExcludeFlossesRequest request)
+        {
+            try
+            {
+                var response = _embroiderService.ExcludeFlosses(request.ExcludedFlosses.ToArray(), request.Guid);
+                if (response == null)
+                {
+                    return StatusCode(400);
+                }
+                using (var stream = new MemoryStream())
+                {
+                    response.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                    return File(stream.ToArray(), "image/png");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
         }
     }
 }

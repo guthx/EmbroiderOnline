@@ -31,13 +31,13 @@ namespace EmroiderOnline.Services
             _users = db.GetCollection<User>("Users");
         }
 
-        public bool CreateEmbroider(IFormFile file, string fileName, string guid)
+        public List<Floss> CreateEmbroider(IFormFile file, string fileName, string guid)
         {
 
             if (!fileName.EndsWith(".jpg") &&
                 !fileName.EndsWith(".png") &&
                 !fileName.EndsWith(".gif"))
-                return false;
+                return null;
 
             var id = Guid.Parse(guid);
             var image = SixLabors.ImageSharp.Image.Load<Rgb24>(file.OpenReadStream());
@@ -53,7 +53,7 @@ namespace EmroiderOnline.Services
             timer.AutoReset = false;
             timer.Start();
             _deletionTimers.AddOrUpdate(id, timer, (key, val) => timer);
-            return true;
+            return Flosses.Dmc();
         }
 
         public Image<Rgb24> GetPreviewImage(OptionsRequest request)
@@ -118,6 +118,27 @@ namespace EmroiderOnline.Services
             return CreateProjectResult.NoImage;
         }
 
+        public bool ModifyPalette(string guid, List<Floss> flosses)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                embroider.ModifyPalette(flosses);
+                return true;
+            }
+            return false;
+        }
+
+        public Image<Rgb24> ExcludeFlosses(string[] excludedFlosses, string guid)
+        {
+            Embroider.Embroider embroider;
+            if (_embroiders.TryGetValue(Guid.Parse(guid), out embroider))
+            {
+                return embroider.ExcludeFlosses(excludedFlosses);
+            }
+            return null;
+        }
+
         private void setEmbroiderOptions(Embroider.Embroider embroider, OptionsRequest request)
         {
             QuantizerType quantizerType;
@@ -140,6 +161,9 @@ namespace EmroiderOnline.Services
                     break;
                 case "ModifiedMedianCut":
                     quantizerType = QuantizerType.ModifiedMedianCut;
+                    break;
+                case "Wu":
+                    quantizerType = QuantizerType.Wu;
                     break;
                 default:
                     quantizerType = QuantizerType.Octree;
@@ -239,7 +263,8 @@ namespace EmroiderOnline.Services
                 ColorComparerType = colorComparer,
                 DithererType = dithererType,
                 DithererStrength = request.DithererStrength,
-                WidthStitchCount = request.WidthStitchCount
+                WidthStitchCount = request.WidthStitchCount,
+                Flosses = embroider.Options.Flosses
             };
             resetDeletionTimer(Guid.Parse(request.Guid));
             embroider.Options = options;

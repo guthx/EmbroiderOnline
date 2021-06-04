@@ -304,7 +304,7 @@ export default function Toolbar({
                         className={'icon'}
                         style={{
                             backgroundColor: `rgb(${toolbarColor.red}, ${toolbarColor.green}, ${toolbarColor.blue})`,
-                            fontSize: '22px',
+                            fontSize: '2.2vh',
                             color: (0.299 * toolbarColor.red + 0.587 * toolbarColor.green + 0.114 * toolbarColor.blue) / 255 > 0.5 ? 'black' : 'white',
                             textAlign: 'center',
                             pointerEvents: 'none'

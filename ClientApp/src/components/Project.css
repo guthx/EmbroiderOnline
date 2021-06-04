@@ -101,7 +101,7 @@
     display: grid;
     width: 95%;
     height: calc(95% - 40px);
-    grid-template-columns: 80px auto;
+    grid-template-columns: 8vh auto;
     margin: auto;
 }
 
@@ -115,10 +115,10 @@
 
 .toolbar-group {
     display: grid;
-    grid-auto-rows: 64px;
-    grid-row-gap: 5px;
+    grid-auto-rows: 6.4vh;
+    grid-row-gap: 0.5vh;
     border-bottom: 2px solid black;
-    padding: 8px 0px;
+    padding: 0.5vh 0px;
 }
 
 .toolbar-group:last-of-type {
@@ -142,7 +142,7 @@
         border-radius: 6px;
         align-items: center;
         user-select: none;
-        font-size: 34px;
+        font-size: 4vh;
     }
 
     .toolbar-item .icon:hover {
